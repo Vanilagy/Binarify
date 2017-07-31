@@ -228,8 +228,7 @@
         },
         
         toUByte: function(number) {
-            // Truncate
-            number |= 0;
+            number = Math.round(number);
             
             return String.fromCharCode(number);
         },
@@ -239,7 +238,7 @@
         },
         
         toUShort: function(number) {
-            number |= 0;
+            number = Math.round(number);
             
             return String.fromCharCode(Math.floor(number / BYTE_MAX_VALUE)) + String.fromCharCode(number % BYTE_MAX_VALUE);
         },
@@ -249,7 +248,7 @@
         },
         
         toUTribyte: function(number) {
-            number |= 0;
+            number = Math.round(number);
             
             return String.fromCharCode(Math.floor(number / (SHORT_MAX_VALUE))) + String.fromCharCode(Math.floor((number % (SHORT_MAX_VALUE)) / BYTE_MAX_VALUE)) + String.fromCharCode(number % BYTE_MAX_VALUE);
         },
@@ -259,7 +258,7 @@
         },
         
         toUInt: function(number) {
-            number |= 0;
+            number = Math.round(number);
             
             return String.fromCharCode(Math.floor(number / (TRIBYTE_MAX_VALUE))) + String.fromCharCode(Math.floor((number % (TRIBYTE_MAX_VALUE)) / (SHORT_MAX_VALUE))) + String.fromCharCode(Math.floor(number % (SHORT_MAX_VALUE) / BYTE_MAX_VALUE)) + String.fromCharCode(number % BYTE_MAX_VALUE);
         },
