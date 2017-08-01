@@ -7,22 +7,22 @@ BinaryJS is an ease-to-use JavaScript framework for encoding complex data struct
 Prior to sending and receiving data, a data structure first has to be defined by the user, which will act as it's own unique binary protocol used to encode and decode the use-specific data. For this, BinaryJS has multiple different data and structure types, each sporting their own `.encode` and `.decode` methods.
 
 **Example:**
-```
+```javascript
 var signedInteger = new Binary.Number("sInt");
 ```
 Now that the datatype has been instanciated, let's encode the number *987654321* by simply passing it to the `.encode` method:
-```
+```javascript
 var encodedMessage = signedInteger.encode(987654321);
 ```
 This will return the binary data stored in the **UTF-8** format, where every character encodes one byte (0-255). In this case, we get the string "ºÞh±". Passing this very string back into the same Object using the `.decode` method
-```
+```javascript
 var decodedMessage = signedInteger.decode("ºÞh±");
 ```
 returns the original input, *987654321*.
 
 Of course, BinaryJS allows for much more complex and nested data structures. 
 **Example:**
-```
+```javascript
 var carBlueprint = new Binary.Object({
     color: new Binary.String(),
     horsePower: new Binary.Number("uShort"),
