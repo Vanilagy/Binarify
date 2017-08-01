@@ -1,5 +1,5 @@
 # BinaryJS
-BinaryJS is an easy-to-use JavaScript framework for encoding complex data structures into compact, bandwidth-saving binary data and back.
+BinaryJS is an easy-to-use JavaScript framework for encoding complex data structures into compact, bandwidth-saving binary data and back. It is meant to simplify communication for real-time web appliactions where network efficiency is key.
 
 ## Functionality
 [Read full documentation](./ref/reference.md)
