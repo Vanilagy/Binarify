@@ -113,7 +113,7 @@ var encodedData = randomIntegersPattern.encode(randomIntegers);
 
 ---
 ## Binary.Dynamic
-The Binary.Dynamic Converter is used for cases in which the programmer can't predetermine or predict the required datatype/structure. This object is passed an associative object of possible Converter objects, each assigned to a specific key. Upon encoding, the key of the desired Converter, along with the data structure itself, is then passed to the `.encode` method.
+Used for cases in which the programmer can't predetermine or predict the required datatype/structure. This object is passed an associative object of possible Converter objects, each assigned to a specific key. Upon encoding, the key of the desired Converter, along with the data structure itself, is then passed to the `.encode` method.
 ### Instanciation syntax:
 ```javascript
 new Binary.Dynamic(pairs)
