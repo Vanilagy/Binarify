@@ -417,7 +417,6 @@
     
     // Handle exporting of the framework
     if (typeof module === "object" && typeof module.exports === "object") {
-        console.log("bitches");
         module.exports = Binary;
     } else {
         (typeof window !== "undefined") ? window.Binary = Binary : this.Binary = Binary;
