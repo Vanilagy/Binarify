@@ -14,7 +14,7 @@ Now that the datatype has been instanciated, let's encode the number *987654321*
 ```javascript
 var encodedMessage = signedInteger.encode(987654321);
 ```
-This will return the binary data stored in the **UTF-8** format, where every character encodes one byte (0-255). In this case, we get the string "ºÞh±". Passing this very string back into the same Object using the `.decode` method
+This will return the binary data stored in the **UTF-8** format, where every character encodes one byte (0-255). In this case, we get the string "ºÞh±". Passing this string back into the same Object using the `.decode` method
 ```javascript
 var decodedMessage = signedInteger.decode("ºÞh±");
 ```
