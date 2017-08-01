@@ -37,7 +37,7 @@ var encodedFerrari = carBlueprint.encode({
     specialFeatures: ["Vertical doors", "Surround sound"]
 });
 ```
-`encodedFerrari` in this case is only 38 bytes long, most of which are used up by its strings. In comparison, JSON.stringify()ing the same data yield a string length of 105 bytes.
+`encodedFerrari` in this case is only 38 bytes long, most of which are used up by its strings. In comparison, JSON.stringify()ing the same data yields a string length of 105 bytes.
 
 ## Installation
 Simply load binary.js *or* binary_min.js using a <script> tag or require it using Node.
