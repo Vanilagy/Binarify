@@ -30,12 +30,14 @@ var carBlueprint = new Binary.Object({
     specialFeatures: new Binary.Array([new Binary.String()], "byte")
 });
 
-var encodedFerrari = carBlueprint.encode({
+var ferrari = {
     color: "red",
     horsePower: 745,
     isSportscar: true,
     specialFeatures: ["Vertical doors", "Surround sound"]
-});
+};
+
+var encodedFerrari = carBlueprint.encode(ferrari);
 ```
 `encodedFerrari` in this case is only 38 bytes long, most of which are used up by its strings. In comparison, JSON.stringify()ing the same data yields a string length of 105 bytes.
 
