@@ -17,7 +17,7 @@ There are different types of Converters, each built for their respective datatyp
 
 ---
 ## Binary.Boolean
-Accepts true/false values.<br>
+Used for true/false values.<br>
 ### Instanciation syntax:
 ```javascript
 new Binary.Boolean()
@@ -28,7 +28,7 @@ Converter.encode(boolean)
 ```
 ---
 ## Binary.Number
-Accepts any numeric value within the range of the specified bytetype.<br>
+Used for numbers of the specified bytetype.<br>
 ### Instanciation syntax:
 ```javascript
 new Binary.Number(type)
@@ -42,7 +42,7 @@ Converter.encode(number)
 
 ---
 ## Binary.String
-Accepts any string.
+Used for strings.
 ### Instanciation syntax:
 ```javascript
 new Binary.String(length)
@@ -56,7 +56,7 @@ Converter.encode(string)
 
 ---
 ## Binary.Object
-Accepts any object made up of *Converter* objects.
+Used for objects matching the predefined structure.
 ### Instanciation syntax:
 ```javascript
 new Binary.Object(blueprint)
@@ -85,7 +85,7 @@ var encodedData = personBlueprint.encode(person);
 
 ---
 ## Binary.Array
-Accepts any array following the specified pattern.
+Used for arrays matching the predefined pattern.
 ### Instanciation syntax:
 ```javascript
 new Binary.Array(pattern[, repeatSize])
@@ -113,13 +113,13 @@ var encodedData = randomIntegersPattern.encode(randomIntegers);
 
 ---
 ## Binary.Dynamic
-Used for cases in which the programmer can't predetermine or predict the required datatype/structure. This object is passed an associative object of possible Converter objects, each assigned to a specific key. Upon encoding, the key of the desired Converter, along with the data structure itself, is then passed to the `.encode` method.
+Used for cases in which the programmer can't predetermine or predict the required datatype/structure or where varying types are expected. All possible datatypes have to be predefined and named.
 ### Instanciation syntax:
 ```javascript
 new Binary.Dynamic(pairs)
 ```
 *Arguments:*<br>
-- `pairs` - An associative object where every key points to a Converter object.
+- `pairs` - An associative object, where every key points to a Converter object.
 ### Encoding syntax:
 ```javascript
 Converter.encode({key: desiredKey, value: dataToEncode});
