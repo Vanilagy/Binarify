@@ -200,20 +200,18 @@
                 
         Dynamic: function(pairs) {
             var keys = Object.keys(pairs);
-            var keyLengthByteLength = Math.ceil(Math.log2(keys.length) / 8);
+            var keyLengthByteLength = Math.ceil(Math.log2(keys.length) / 8) || 1;            
             var keyLengthByteType = getTypeByLength(keyLengthByteLength);
             keyLengthByteLength = getLengthByType(keyLengthByteType); // Set to 8 if type is double
             
             this.encode = function(pairObj) {
-                console.log(keys, keyLengthByteLength, keyLengthByteType)
-                
-                return formatter["toU" + capitalizeFirstLetter(keyLengthByteType)](keys.indexOf(pairObj.key)) + pairs[pairObj.key].encode(pairObj.value);
+                return formatter["to" + ((keyLengthByteType !== "double") ? "U" : "") + capitalizeFirstLetter(keyLengthByteType)](keys.indexOf(pairObj.key)) + pairs[pairObj.key].encode(pairObj.value);
             };
             
             this.decode = function(binStr) {
                 var binStrRef = typeof binStr === "string" ? {val: binStr} : binStr;
                 
-                var key = keys[formatter["fromU" + capitalizeFirstLetter(keyLengthByteType)](binStrRef.val.slice(0, keyLengthByteLength))];
+                var key = keys[formatter["from" + ((keyLengthByteType !== "double") ? "U" : "") + capitalizeFirstLetter(keyLengthByteType)](binStrRef.val.slice(0, keyLengthByteLength))];
                 binStrRef.val = binStrRef.val.slice(keyLengthByteLength);
                 
                 return {key: key, value: pairs[key].decode(binStrRef)};
