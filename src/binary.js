@@ -1,5 +1,5 @@
 /*
-    BinaryJS v1.0.2
+    BinaryJS v1.0.3
     @Vanilagy
 */
 
