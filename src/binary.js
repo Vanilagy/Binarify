@@ -1,5 +1,5 @@
 /*
-    BinaryJS v1.0.3
+    BinaryJS v1.1.0
     @Vanilagy
 */
 
@@ -8,6 +8,8 @@
     var SHORT_MAX_VALUE = 65536;
     var TRIBYTE_MAX_VALUE = 16777216; // Almost never used, but turns out to be a good sweetspot for some uses
     var INT_MAX_VALUE = 4294967296;
+    var ELEMENTAL_NUMBER_TYPES = ["byte", "short", "tribyte", "int", "float", "double"];
+    var EXTENDED_NUMBER_TYPES = ["uByte", "sByte", "uShort", "sShort", "uTribyte", "sTribyte", "uInt", "sInt", "float", "double"];
     
     function getLengthByType(type) {
         switch (type) {
@@ -20,6 +22,7 @@
             default: throw new Error("Incorrect number type '" + type + "'");
         }
     }
+    
     function getTypeByLength(length) {
         switch (length) {
             case 1: return "byte"; break;
@@ -34,17 +37,6 @@
         return string.charAt(0).toUpperCase() + string.slice(1);
     }
     
-    // Converts the character's char codes to raw binary representation (used for floating-points)
-    function strToBin(str) {
-        var bin = "";
-
-        for (var i = 0; i < str.length; i++) {
-            bin += ("00000000" + str.charCodeAt(i).toString(2)).slice(-8);
-        }
-
-        return bin;
-    }
-    
     /*
         Main object, containing all different data and structure types, each with their encoding and decoding methods.
         
@@ -57,9 +49,9 @@
         not my value. This is necessary for nested and/or recursive decoding processes.
     */
     
-    var Binary = {
+    var binary = {
         Boolean: function() {            
-            this.encode = function(boolean) {
+            this.encode = function(boolean) {
                 return formatter.toUByte(boolean ? 1 : 0);
             };
             
@@ -74,8 +66,9 @@
         },
         
         Number: function(type) {
-            // Defaults to JavaScript's "double"
+            // Defaults to JavaScript's default "double"
             type = type || "double";
+            if (EXTENDED_NUMBER_TYPES.indexOf(type) === -1) throw new Error("Incorrect Number type '" + type + "'");
             var size = getLengthByType(((type !== "double" && type !== "float") ? type.slice(1) : type).toLowerCase());
 
             this.encode = function(number) {
@@ -95,6 +88,7 @@
         String: function(maxSize) {
             // Defaults to a null-terminated string
             maxSize = maxSize || "nullTer";
+            if (maxSize !== "nullTer" && ELEMENTAL_NUMBER_TYPES.indexOf(maxSize) === -1) throw new Error("Incorrect String size number type '" + maxSize + "'");
             
             this.encode = function(string) {
                 if (maxSize === "nullTer") {
@@ -124,7 +118,7 @@
         },
         
         Object: function(blueprint) {            
-            this.encode = function(obj) {
+            this.encode = function(obj) {
                 var binStr = "";
                 
                 for (var key in blueprint) {
@@ -151,7 +145,13 @@
                 If repeatSize is not given, the array will be looked at as more of an "unnamed object", simply specifying
                 a pattern of set datatypes and length.
             */
-            if (repeatSize) var repeatSizeLength = getLengthByType(repeatSize);
+            if (repeatSize) {
+                if (ELEMENTAL_NUMBER_TYPES.indexOf(repeatSize) > -1) {
+                    var repeatSizeLength = getLengthByType(repeatSize);
+                } else {
+                    throw new Error("Incorrect Array size number type '" + repeatSize + "'");
+                }
+            }   
             
             this.encode = function(arr) {
                 var binStr = "";
@@ -263,7 +263,7 @@
         
         /*
             Signed datatypes simply shift values upon encoding and revert the shift when decoding. Might use 2's
-            complement in the future, though.
+            complement in the future, though. This works for now.
         */
         
         fromSByte: function(string) {
@@ -298,125 +298,137 @@
             return this.toUInt(number + INT_MAX_VALUE / 2);
         },
         
-        // Uses float format as described in the IEEE 754 standard (almost).
+        /*
+            The following formatters format as described in the IEEE 754 standard (almost).
+        */
         
-        fromFloat: function(string) {
-            // String has to be expanded out into its pure binary representation
-            var bin = strToBin(string);
-            
-            // Significand starts at one, decimal places are added further down
-            var frac = 1;
-            
+        fromFloat: function(string) {            
             // Get true exponent by offsetting by the exponent bias
-            var exp = parseInt(bin.substr(1, 8), 2) - 127;
-            
-            var sign = ((bin.charAt(0) === "0") ? 1 : -1);
+            var exp = (string.charCodeAt(0) % 128) * 2 + ((string.charCodeAt(1) >= 128) ? 1 : 0) - 127;
+            var sign = (string.charCodeAt(0) >= 128) ? -1 : 1;
 
             if (exp === -127) { // Special case for 0
                 return 0 * sign;
             } else if (exp === 128) { // Special case for NaN or Infinity
-                if (bin.charAt(9) === "0") { // Check if significand is zero
+                if ((string.charCodeAt(1) & 64) === 0) { // Check if significand is zero
                     return Infinity * sign;
                 } else {
                     return NaN;
                 }
             }
 
-            // Add to the significand
-            for (var i = 1; i <= 23; i++) {
-                if (bin.charAt(8 + i) === "1") {
-                    frac += Math.pow(2, -i);
-                }
-            }
+            // Add more and more precision to fraction
+            var frac = 1;
+            frac += (string.charCodeAt(1) % 128) / 128;
+            frac += (string.charCodeAt(2)) / 128 / 256;
+            frac += (string.charCodeAt(3)) / 128 / 256 / 256;
 
-            return Math.pow(2, exp) * frac * sign;
+            return sign * Math.pow(2, exp) * frac;
         },
         
         toFloat: function(number) {
-            // The string that will store the raw binary representation of the floating-point number
-            var bits;
-            
             if (number === 0) { // Triggers special encoding for 0
-                bits = ((1 / number > 0) ? "0" : "1") + "0000000000000000000000000000000";
+                return String.fromCharCode((1 / number > 0) ? 0 : 128) + "\u0000\u0000\u0000";
             } else if (isNaN(number)) {
-                bits = "01111111110000000000000000000000"; // Exp 255, significand non-zero
+                return "\u007f\u00c0\u0000\u0000"; // 127, 192, 0, 0 (exp 255, significand non-zero)
             } else {
                 var abs = Math.abs(number);
                 var exp = Math.min(128, Math.max(-127, Math.floor(Math.log2(abs))));
-                var frac = abs / Math.pow(2, exp);
-                
-                if (exp === 128) { // Infinity
-                    bits = ((number < 0) ? "1" : "0") + "1111111100000000000000000000000";
+
+                if (exp === 128) { // Infinity
+                    return String.fromCharCode(((number > 0) ? 0 : 128) + 127) + "\u0080\u0000\u0000";
                 } else {
-                    bits = ((number < 0) ? "1" : "0") + ("00000000" + (exp + 127).toString(2)).slice(-8) + (frac.toString(2) + "00000000000000000000000").substr(2, 23);
+                    var bias = exp + 127;
+                    var frac = (abs / Math.pow(2, exp) - 1) * 128;
+                    var truncFrac = frac | 0;
+
+                    // Build string by continuously dividing up the number to get the mantissa to wanted precision
+                    var output = String.fromCharCode(((number > 0) ? 0 : 128) + (bias >>> 1)) + String.fromCharCode((bias % 2) * 128 + truncFrac);
+                    frac = (frac - truncFrac) * 256;
+                    truncFrac = frac | 0;
+                    output += String.fromCharCode(truncFrac);
+                    frac = (frac - truncFrac) * 256;
+                    output += String.fromCharCode(frac | 0);
+
+                    return output;
                 }
             }
-
-            // Convert bits to UTF-8
-            var output = "";
-            for (var i = 0; i < 4; i++) {
-                output += String.fromCharCode(parseInt(bits.slice(i * 8, i * 8 + 8), 2));
-            }
-            return output;
         },
         
         // Doubles function identically to floats, but make use of the additional 32 bits they take up.
         fromDouble: function(string) {
-            var bin = strToBin(string);
-            var frac = 1;
-            var exp = parseInt(bin.substr(1, 11), 2) - 1023;
-            var sign = ((bin.charAt(0) === "0") ? 1 : -1);
+            var exp = (string.charCodeAt(0) % 128) * 16 + ((string.charCodeAt(1) & 240) / 16) - 1023;
+            var sign = (string.charCodeAt(0) >= 128) ? -1 : 1;
 
             if (exp === -1023) {
                 return 0 * sign;
-            } else if (exp === 1024) {
-                if (bin.charAt(12) === "0") {
+            } else if (exp === 1024) {
+                if ((string.charCodeAt(1) & 8) === 0) {
                     return Infinity * sign;
                 } else {
                     return NaN;
                 }
             }
 
-            for (var i = 1; i <= 52; i++) {
-                if (bin.charAt(11 + i) === "1") {
-                    frac += Math.pow(2, -i);
-                }
-            }
+            var frac = 1;
+            frac += (string.charCodeAt(1) % 16) / 16;
+            frac += string.charCodeAt(2) / 16 / 256;
+            frac += string.charCodeAt(3) / 16 / 256 / 256;
+            frac += string.charCodeAt(4) / 16 / 256 / 256 / 256;
+            frac += string.charCodeAt(5) / 16 / 256 / 256 / 256 / 256;
+            frac += string.charCodeAt(6) / 16 / 256 / 256 / 256 / 256 / 256;
+            frac += string.charCodeAt(7) / 16 / 256 / 256 / 256 / 256 / 256 / 256;
 
-            return Math.pow(2, exp) * frac * sign;
+            return sign * Math.pow(2, exp) * frac;
         },
         
         toDouble: function(number) {
             var bits;
             
             if (number === 0) {
-                bits = ((1 / number > 0) ? "0" : "1") + "000000000000000000000000000000000000000000000000000000000000000";
+                return String.fromCharCode((1 / number > 0) ? 0 : 128) + "\u0000\u0000\u0000\u0000\u0000\u0000\u0000";
             } else if (isNaN(number)) {
-                bits = "0111111111111000000000000000000000000000000000000000000000000000";
+                return "\u007f\u00f8\u0000\u0000\u0000\u0000\u0000\u0000"; // 127, 248, 0, 0, 0, 0, 0, 0 (exp 2047, significand non-zero)
             } else {
                 var abs = Math.abs(number);
                 var exp = Math.min(1024, Math.max(-1023, Math.floor(Math.log2(abs))));
-                var frac = abs / Math.pow(2, exp);
-                
+
                 if (exp === 1024) {
-                    bits = ((number < 0) ? "1" : "0") + "111111111110000000000000000000000000000000000000000000000000000";
+                    return String.fromCharCode(((number > 0) ? 0 : 128) + 127) + "\u00f0\u0000\u0000\u0000\u0000\u0000\u0000";
                 } else {
-                    bits = ((number < 0) ? "1" : "0") + ("00000000000" + (exp + 1023).toString(2)).slice(-11) + (frac.toString(2) + "0000000000000000000000000000000000000000000000000000").substr(2, 52);
+                    var bias = exp + 1023;
+                    var frac = (abs / Math.pow(2, exp) - 1) * 16;
+                    var truncFrac = frac | 0;
+
+                    var output = String.fromCharCode(((number > 0) ? 0 : 128) + (bias >>> 4)) + String.fromCharCode((bias % 16) * 16 + truncFrac);
+                    frac = (frac - truncFrac) * 256;
+                    truncFrac = frac | 0;
+                    output += String.fromCharCode(truncFrac);
+                    frac = (frac - truncFrac) * 256;
+                    truncFrac = frac | 0;
+                    output += String.fromCharCode(truncFrac);
+                    frac = (frac - truncFrac) * 256;
+                    truncFrac = frac | 0;
+                    output += String.fromCharCode(truncFrac);
+                    frac = (frac - truncFrac) * 256;
+                    truncFrac = frac | 0;
+                    output += String.fromCharCode(truncFrac);
+                    frac = (frac - truncFrac) * 256;
+                    truncFrac = frac | 0;
+                    output += String.fromCharCode(truncFrac);
+                    frac = (frac - truncFrac) * 256;
+                    output += String.fromCharCode(frac | 0);
+
+                    return output;
                 }
             }
-
-            var output = "";
-            for (var i = 0; i < 8; i++) {
-                output += String.fromCharCode(parseInt(bits.slice(i * 8, i * 8 + 8), 2));
-            }
-            return output;
         }
     };
     
     // Handle exporting of the framework
     if (typeof module === "object" && typeof module.exports === "object") {
-        module.exports = Binary;
+        module.exports = binary;
     } else {
-        (typeof window !== "undefined") ? window.Binary = Binary : this.Binary = Binary;
+        (typeof window !== "undefined") ? window.binary = binary : this.binary = binary;
     }
 })();
