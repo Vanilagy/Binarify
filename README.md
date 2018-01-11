@@ -8,7 +8,7 @@ Prior to sending and receiving data, a data structure first has to be defined by
 
 **Example:**
 ```javascript
-var signedInteger = new Binary.Number("sInt");
+var signedInteger = new binary.Number("sInt");
 ```
 Now that the datatype has been instanciated, let's encode the number *987654321* by simply passing it to the `.encode` method:
 ```javascript
@@ -23,11 +23,11 @@ returns the original input, *987654321*.
 Of course, BinaryJS allows for much more complex and nested data structures. 
 **Example:**
 ```javascript
-var carBlueprint = new Binary.Object({
-    color: new Binary.String(),
-    horsePower: new Binary.Number("uShort"),
-    isSportscar: new Binary.Boolean(),
-    specialFeatures: new Binary.Array([new Binary.String()], "byte")
+var carBlueprint = new binary.Object({
+    color: new binary.String(),
+    horsePower: new binary.Number("uShort"),
+    isSportscar: new binary.Boolean(),
+    specialFeatures: new binary.Array([new binary.String()], "byte")
 });
 
 var ferrari = {
