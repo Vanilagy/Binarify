@@ -1,5 +1,5 @@
 /*
-    BinaryJS v1.1.0
+    BinaryJS v1.2.0
     @Vanilagy
 */
 
@@ -216,6 +216,29 @@
                 
                 return {key: key, value: pairs[key].decode(binStrRef)};
             };
+        },
+
+        NullWrapper: function(converter) {
+            this.encode = function(data) {
+                if (data === null) {
+                    return String.fromCharCode(0);
+                } else {
+                    return String.fromCharCode(1) + converter.encode(data);
+                }
+            };
+
+            this.decode = function(binStr) {
+                var binStrRef = typeof binStr === "string" ? {val: binStr} : binStr;
+
+                var isNull = binStrRef.val.charCodeAt(0) === 0;
+                binStrRef.val = binStrRef.val.slice(1);
+
+                if (isNull) {
+                    return null;
+                } else {
+                    return converter.decode(binStrRef);
+                }
+            }
         }
     };
     

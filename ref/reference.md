@@ -146,3 +146,35 @@ var encodedData = furnitureArray.encode([
     {key: "lamp", value: {color: "white"}}
 ]);
 ```
+
+---
+## binary.NullWrapper
+Used for cases where null might be passed to the converter, instead of the specified data structure.
+### Instanciation syntax:
+```javascript
+new binary.NullWrapper(converterObject)
+```
+*Arguments:*<br>
+- `converterObject` - Any Converter object. Will be used to encode the data if it isn't null.
+### Encoding syntax:
+```javascript
+Converter.encode(data);
+```
+### Example:
+```javascript
+var clientDataBlueprint = new binary.Object({
+    firstName: new binary.String(),
+    lastName: new binary.String(),
+    email: new binary.String(),
+    dateOfBirth: new binary.NullWrapper(new binary.Number("uInt")), // This...
+    phoneNumber: new binary.NullWrapper(new binary.String()) // ...and this field might be optional
+});
+
+var encodedData = clientDataBlueprint.encode({
+    firstName: "John",
+    lastName: "Doe",
+    email: "john.doe@example.com",
+    dateOfBirth: null,
+    phoneNumber: "123 456 789"
+});
+```
