@@ -22,6 +22,7 @@ There are different types of Converters, each built for their respective datatyp
 [binary.Array](#binaryarray)<br>
 [binary.Dynamic](#binarydynamic)<br>
 [binary.NullWrapper](#binarynullwrapper)<br>
+
 ---
 ## binary.Boolean
 Used for true/false values.<br>
