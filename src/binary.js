@@ -1,13 +1,17 @@
 /*
-    BinaryJS v1.2.0
+    BinaryJS v1.2.1
     @Vanilagy
 */
 
 (function() {
-    var BYTE_MAX_VALUE = 256;
-    var SHORT_MAX_VALUE = 65536;
-    var TRIBYTE_MAX_VALUE = 16777216; // Almost never used, but turns out to be a good sweetspot for some uses
-    var INT_MAX_VALUE = 4294967296;
+    var MAX_VALUES = {
+        byte: 256,
+        short: 65536,
+        tribyte: 16777216, // Almost never used, but turns out to be a good sweetspot for some uses
+        int: 4294967296,
+        float: 16777217,
+        double: Number.MAX_SAFE_INTEGER
+    };
     var ELEMENTAL_NUMBER_TYPES = ["byte", "short", "tribyte", "int", "float", "double"];
     var EXTENDED_NUMBER_TYPES = ["uByte", "sByte", "uShort", "sShort", "uTribyte", "sTribyte", "uInt", "sInt", "float", "double"];
     
@@ -96,7 +100,7 @@
                     return string + String.fromCharCode(0);
                 } else {
                     // Prepend the string's length
-                    return formatter["toU" + capitalizeFirstLetter(maxSize)](string.length) + string.slice(0, getLengthByType(maxSize));
+                    return formatter["toU" + capitalizeFirstLetter(maxSize)](string.length) + string.slice(0, MAX_VALUES[maxSize]);
                 }
             };
             
@@ -245,43 +249,43 @@
     // Helper object, used to convert from and to different number types
     var formatter = {
         fromUByte: function(string) {
-            return string.charCodeAt(0);
+            return string.charCodeAt(0) % MAX_VALUES.byte;
         },
         
         toUByte: function(number) {
-            number = Math.round(number);
+            number = Math.round(number) % MAX_VALUES.byte;
             
             return String.fromCharCode(number);
         },
         
         fromUShort: function(string) {
-            return string.charCodeAt(0) * BYTE_MAX_VALUE + string.charCodeAt(1);
+            return (string.charCodeAt(0) * MAX_VALUES.byte + string.charCodeAt(1)) % MAX_VALUES.short;
         },
         
         toUShort: function(number) {
-            number = Math.round(number);
+            number = Math.round(number) % MAX_VALUES.short;
             
-            return String.fromCharCode(Math.floor(number / BYTE_MAX_VALUE)) + String.fromCharCode(number % BYTE_MAX_VALUE);
+            return String.fromCharCode(Math.floor(number / MAX_VALUES.byte)) + String.fromCharCode(number % MAX_VALUES.byte);
         },
         
         fromUTribyte: function(string) {
-            return string.charCodeAt(0) * SHORT_MAX_VALUE + string.charCodeAt(1) * BYTE_MAX_VALUE + string.charCodeAt(2);
+            return (string.charCodeAt(0) * MAX_VALUES.short + string.charCodeAt(1) * MAX_VALUES.byte + string.charCodeAt(2)) % MAX_VALUES.tribyte;
         },
         
         toUTribyte: function(number) {
-            number = Math.round(number);
+            number = Math.round(number) % MAX_VALUES.tribyte;
             
-            return String.fromCharCode(Math.floor(number / (SHORT_MAX_VALUE))) + String.fromCharCode(Math.floor((number % (SHORT_MAX_VALUE)) / BYTE_MAX_VALUE)) + String.fromCharCode(number % BYTE_MAX_VALUE);
+            return String.fromCharCode(Math.floor(number / (MAX_VALUES.short))) + String.fromCharCode(Math.floor((number % (MAX_VALUES.short)) / MAX_VALUES.byte)) + String.fromCharCode(number % MAX_VALUES.byte);
         },
         
         fromUInt: function(string) {
-            return string.charCodeAt(0) * TRIBYTE_MAX_VALUE + string.charCodeAt(1) * SHORT_MAX_VALUE + string.charCodeAt(2) * BYTE_MAX_VALUE + string.charCodeAt(3);
+            return (string.charCodeAt(0) * MAX_VALUES.tribyte + string.charCodeAt(1) * MAX_VALUES.short + string.charCodeAt(2) * MAX_VALUES.byte + string.charCodeAt(3)) % MAX_VALUES.int;
         },
         
         toUInt: function(number) {
-            number = Math.round(number);
+            number = Math.round(number) % MAX_VALUES.int;
             
-            return String.fromCharCode(Math.floor(number / (TRIBYTE_MAX_VALUE))) + String.fromCharCode(Math.floor((number % (TRIBYTE_MAX_VALUE)) / (SHORT_MAX_VALUE))) + String.fromCharCode(Math.floor(number % (SHORT_MAX_VALUE) / BYTE_MAX_VALUE)) + String.fromCharCode(number % BYTE_MAX_VALUE);
+            return String.fromCharCode(Math.floor(number / (MAX_VALUES.tribyte))) + String.fromCharCode(Math.floor((number % (MAX_VALUES.tribyte)) / (MAX_VALUES.short))) + String.fromCharCode(Math.floor(number % (MAX_VALUES.short) / MAX_VALUES.byte)) + String.fromCharCode(number % MAX_VALUES.byte);
         },
         
         /*
@@ -290,35 +294,35 @@
         */
         
         fromSByte: function(string) {
-            return this.fromUByte(string) - BYTE_MAX_VALUE / 2;
+            return this.fromUByte(string) - MAX_VALUES.byte / 2;
         },
         
         toSByte: function(number) {
-            return this.toUByte(number + BYTE_MAX_VALUE / 2);
+            return this.toUByte(number + MAX_VALUES.byte / 2);
         },
         
         fromSShort: function(string) {
-            return this.fromUShort(string) - SHORT_MAX_VALUE / 2;
+            return this.fromUShort(string) - MAX_VALUES.short / 2;
         },
         
         toSShort: function(number) {
-            return this.toUShort(number + SHORT_MAX_VALUE / 2);
+            return this.toUShort(number + MAX_VALUES.short / 2);
         },
         
         fromSTribyte: function(string) {
-            return this.fromUTribyte(string) - TRIBYTE_MAX_VALUE / 2;
+            return this.fromUTribyte(string) - MAX_VALUES.tribyte / 2;
         },
         
         toSTribyte: function(number) {
-            return this.toUTribyte(number + TRIBYTE_MAX_VALUE / 2);
+            return this.toUTribyte(number + MAX_VALUES.tribyte / 2);
         },
         
         fromSInt: function(string) {
-            return this.fromUInt(string) - INT_MAX_VALUE / 2;
+            return this.fromUInt(string) - MAX_VALUES.int / 2;
         },
         
         toSInt: function(number) {
-            return this.toUInt(number + INT_MAX_VALUE / 2);
+            return this.toUInt(number + MAX_VALUES.int / 2);
         },
         
         /*
