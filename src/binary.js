@@ -1,5 +1,5 @@
 /*
-    BinaryJS v1.2.1
+    BinaryJS v1.3.0
     @Vanilagy
 */
 
@@ -126,6 +126,7 @@
                 var binStr = "";
                 
                 for (var key in blueprint) {
+                    if (obj[key] === undefined) throw new Error("Key '" + key + "' is not defined!");
                     binStr += blueprint[key].encode(obj[key]);
                 }
                 
@@ -209,7 +210,8 @@
             keyLengthByteLength = getLengthByType(keyLengthByteType); // Set to 8 if type is double
             
             this.encode = function(pairObj) {
-                return formatter["to" + ((keyLengthByteType !== "double") ? "U" : "") + capitalizeFirstLetter(keyLengthByteType)](keys.indexOf(pairObj.key)) + pairs[pairObj.key].encode(pairObj.value);
+                if (pairs[pairObj.key] === undefined) throw new Error("Key '" + pairObj.key + "' is not defined!");
+                return formatter["to" + ((keyLengthByteType !== "double") ? "U" : "") + capitalizeFirstLetter(keyLengthByteType)](keys.indexOf(pairObj.key)) + ((pairs[pairObj.key] === null) ? "" : pairs[pairObj.key].encode(pairObj.value));
             };
             
             this.decode = function(binStr) {
@@ -218,7 +220,7 @@
                 var key = keys[formatter["from" + ((keyLengthByteType !== "double") ? "U" : "") + capitalizeFirstLetter(keyLengthByteType)](binStrRef.val.slice(0, keyLengthByteLength))];
                 binStrRef.val = binStrRef.val.slice(keyLengthByteLength);
                 
-                return {key: key, value: pairs[key].decode(binStrRef)};
+                return {key: key, value: (pairs[key] === null) ? null : pairs[key].decode(binStrRef)};
             };
         },
 
