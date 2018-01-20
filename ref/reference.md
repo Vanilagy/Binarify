@@ -154,7 +154,7 @@ var encodedData = furnitureArray.encode([
     {key: "lamp", value: {color: "white"}}
 ]);
 ```
-Instead of assigning a key to a Converter, one can also assign it to null. This is useful for when the key itself carries meaning and doesn't actually need to hold any additional data.
+Instead of assigning a key to a Converter, one can also assign it to `null`. This is useful for when the key itself carries meaning and doesn't actually need to hold any additional data.
 ```javascript
 var messageTypes = new binary.Dynamic({
     sayHi: null,
@@ -165,7 +165,7 @@ function handleMessage(msg) {
     if (msg.key === "sayHi") console.log("Hi");
     if (msg.key === "sayNumber") console.log(msg.value);
 }
-handleMessage(messageTypes.decode(messageTypes.encode({key: "sayHi" /* Value does not need to be specified in this case */})));
+handleMessage(messageTypes.decode(messageTypes.encode({key: "sayHi" /* 'value' does not need to be specified in this case */})));
 ```
 
 ---
