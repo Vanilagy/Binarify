@@ -180,7 +180,8 @@ Converter.encode({key: desiredKey, value: dataToEncode});
    that key's value has to match that of dataToEncode. */
    
 Converter.encode(desiredKey, dataToEncode);
-/* Alternative, cleaner way of passing key and value. Only works when the Dynamic Converter is at the top-most layer of the data structure. */
+/* Alternative, cleaner way of passing key and value. Only works when the Dynamic Converter
+   is at the top-most layer of the data structure. */
 ```
 ### Example:
 ```javascript
