@@ -111,10 +111,11 @@ var encodedHash = SHA1.encode("74738ff55367e9589aee98fffdcd187694028007");
 Used for objects matching the predefined structure.
 ### Instanciation syntax:
 ```javascript
-new binary.Object(blueprint)
+new binary.Object(blueprint[, loose])
 ```
 *Arguments:*<br>
 - `blueprint` - An object of key-value pairs where every value points to a *Converter* object.
+- `loose` - *Optional.* Keys can be omitted if this is set to true. Otherwise, every key defined in the blueprint must also be present in the object passed to the `.encode()` method.
 ### Encoding syntax:
 ```javascript
 Converter.encode(object)
