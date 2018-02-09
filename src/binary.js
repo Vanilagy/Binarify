@@ -1,5 +1,5 @@
 /*
-    BinaryJS v1.4.0
+    BinaryJS v1.4.1
     @Vanilagy
 */
 
@@ -330,9 +330,17 @@
             var keyLengthByteType = getTypeByLength(keyLengthByteLength);
             keyLengthByteLength = getLengthByType(keyLengthByteType); // Set to 8 if type is double
             
-            this.encode = function(pairObj) {
-                if (pairs[pairObj.key] === undefined) throw new Error("Key '" + pairObj.key + "' is not defined!");
-                return formatter["to" + ((keyLengthByteType !== "double") ? "U" : "") + capitalizeFirstLetter(keyLengthByteType)](keys.indexOf(pairObj.key)) + ((pairs[pairObj.key] === null) ? "" : pairs[pairObj.key].encode(pairObj.value));
+            this.encode = function(arg1, arg2) {
+                if (arg2 !== undefined) {
+                    var key = arg1;
+                    var value = arg2;
+                } else {
+                    var key = arg1.key;
+                    var value = arg1.value;
+                }
+
+                if (pairs[key] === undefined) throw new Error("Key '" + key + "' is not defined!");
+                return formatter["to" + ((keyLengthByteType !== "double") ? "U" : "") + capitalizeFirstLetter(keyLengthByteType)](keys.indexOf(key)) + ((pairs[key] === null) ? "" : pairs[key].encode(value));
             };
             
             this.decode = function(binStr) {
