@@ -1,5 +1,5 @@
 /*
-    BinaryJS v1.3.0
+    BinaryJS v1.4.0
     @Vanilagy
 */
 
@@ -39,6 +39,16 @@
     
     function capitalizeFirstLetter(string) {
         return string.charAt(0).toUpperCase() + string.slice(1);
+    }
+
+    // Modulo that never return negative numbers. Instead, they wrap around to the positive side again.
+    function adjustedMod(n, m) {
+        return ((n % m) + m) % m;
+    }
+
+    var hexRegExp = /^[0-9a-fA-F]+$/;
+    function isHexString(str) {
+        return hexRegExp.test(str);
     }
     
     /*
@@ -90,17 +100,33 @@
         },
         
         String: function(maxSize) {
-            // Defaults to a null-terminated string
-            maxSize = maxSize || "nullTer";
-            if (maxSize !== "nullTer" && ELEMENTAL_NUMBER_TYPES.indexOf(maxSize) === -1) throw new Error("Incorrect String size number type '" + maxSize + "'");
+            var hasExactLength = typeof maxSize === "number";
+
+            if (!hasExactLength) {
+                // Defaults to a null-terminated string
+                var size = maxSize || "nullTer";
+                if (size !== "nullTer" && ELEMENTAL_NUMBER_TYPES.indexOf(size) === -1) throw new Error("Incorrect String size number type '" + size + "'");
+            } else {
+                maxSize = Math.floor(maxSize);
+                if (maxSize < 0) throw new Error("String cannot have a fixed length shorter than 0");
+                var length = maxSize;
+            }
             
             this.encode = function(string) {
-                if (maxSize === "nullTer") {
-                    // Append null-terminator to the end
-                    return string + String.fromCharCode(0);
+                if (!hasExactLength) {
+                    if (size === "nullTer") {
+                        // Append null-terminator to the end
+                        return string + String.fromCharCode(0);
+                    } else {
+                        // Prepend the string's length
+                        return formatter["toU" + capitalizeFirstLetter(size)](string.length) + string.slice(0, MAX_VALUES[size]);
+                    }
                 } else {
-                    // Prepend the string's length
-                    return formatter["toU" + capitalizeFirstLetter(maxSize)](string.length) + string.slice(0, MAX_VALUES[maxSize]);
+                    if (string.length === length) {
+                        return string;
+                    } else {
+                        throw new Error("Passed string isn't of specified length " + length + "!");
+                    }
                 }
             };
             
@@ -108,26 +134,109 @@
                 var binStrRef = typeof binStr === "string" ? {val: binStr} : binStr;
                 
                 var output;
-                if (maxSize === "nullTer") {
-                    output = binStrRef.val.slice(0, binStrRef.val.indexOf(String.fromCharCode(0)));
-                    binStrRef.val = binStrRef.val.slice(output.length + 1);
+
+                if (!hasExactLength) {
+                    if (size === "nullTer") {
+                        output = binStrRef.val.slice(0, binStrRef.val.indexOf(String.fromCharCode(0)));
+                        binStrRef.val = binStrRef.val.slice(output.length + 1);
+                    } else {
+                        var typeSize = getLengthByType(size);
+                        var length = formatter["fromU" + capitalizeFirstLetter(size)](binStrRef.val.slice(0, typeSize));
+                        output = binStrRef.val.slice(typeSize, typeSize + length);
+                        binStrRef.val = binStrRef.val.slice(typeSize + length);
+                    }
                 } else {
-                    var typeSize = getLengthByType(maxSize);
-                    var length = formatter["fromU" + capitalizeFirstLetter(maxSize)](binStrRef.val.slice(0, typeSize));
-                    output = binStrRef.val.slice(typeSize, typeSize + length);
-                    binStrRef.val = binStrRef.val.slice(typeSize + length);
+                    output = binStrRef.val.slice(0, length);
+                    binStrRef.val = binStrRef.val.slice(length);
                 }
+                
                 return output;
             };
         },
         
-        Object: function(blueprint) {            
+        HexString: function(length) {
+            var hasExactLength = typeof length === "number";
+
+            if (hasExactLength) {
+                length = Math.floor(length);
+                if (length < 0) throw new Error("HexString cannot have a fixed length shorter than 0");
+            }
+
+            this.encode = function(string) {
+                if (!isHexString(string)) throw new Error("Passed string is not a HexString!");
+                if (hasExactLength && string.length !== length) throw new Error("Passed string isn't of specified length " + length + "!");
+
+                var binStr = "";
+
+                // Makes sure the decoder knows if the last byte is used fully or only half of it
+                if (!hasExactLength) binStr += String.fromCharCode((string.length % 2 === 0) ? 1 : 0);
+
+                for (var i = 0; i < string.length; i += 2) {
+                    binStr += String.fromCharCode(parseInt(string.substr(i, (string.length - i >= 2) ? 2 : 1), 16));
+                }
+
+                if (!hasExactLength) binStr += String.fromCharCode(256); // Cheating a little here
+
+                return binStr;
+            };
+
+            this.decode = function(binStr) {
+                var binStrRef = typeof binStr === "string" ? {val: binStr} : binStr;
+
+                var data;
+                if (!hasExactLength) {
+                    var lastByteFull = (binStrRef.val.charCodeAt(0) === 1) ? true : false;
+                    var endIndex = binStrRef.val.indexOf(String.fromCharCode(256));
+                    data = binStrRef.val.slice(1, endIndex);
+                } else {
+                    data = binStrRef.val.slice(0, Math.ceil(length / 2));
+                }
+
+                var hexString = "";
+                for (var i = 0; i < data.length; i++) {
+                    if (i !== data.length - 1) {
+                        hexString += ("00" + data.charCodeAt(i).toString(16)).slice(-2);
+                    } else {
+                        var lastByteDifferent = false;
+                        if (!hasExactLength && !lastByteFull) lastByteDifferent = true;
+                        if (hasExactLength && length % 2 === 1) lastByteDifferent = true;
+
+                        if (!lastByteDifferent) {
+                            hexString += ("00" + data.charCodeAt(i).toString(16)).slice(-2);
+                        } else {
+                            hexString += data.charCodeAt(i).toString(16);
+                        }
+                    }
+                }
+
+                binStrRef.val = binStrRef.val.slice(data.length + ((hasExactLength) ? 0 : 2));
+                return hexString;
+            };
+        },
+        
+        Object: function(blueprint, loose) {   
+            if (loose) {
+                var keys = Object.keys(blueprint);
+                var keyLengthByteLength = Math.ceil(Math.log2(keys.length) / 8) || 1;            
+                var keyLengthByteType = getTypeByLength(keyLengthByteLength);
+                keyLengthByteLength = getLengthByType(keyLengthByteType); // Set to 8 if type is double
+            }
+            
             this.encode = function(obj) {
                 var binStr = "";
                 
-                for (var key in blueprint) {
-                    if (obj[key] === undefined) throw new Error("Key '" + key + "' is not defined!");
-                    binStr += blueprint[key].encode(obj[key]);
+                if (!loose) {
+                    for (var key in blueprint) {
+                        if (obj[key] === undefined) throw new Error("Key '" + key + "' is not defined!");
+                        binStr += blueprint[key].encode(obj[key]);
+                    }
+                } else {
+                    binStr += formatter["to" + ((keyLengthByteType !== "double") ? "U" : "") + capitalizeFirstLetter(keyLengthByteType)](Object.keys(obj).length);
+
+                    for (var key in obj) {
+                        if (blueprint[key] === undefined) throw new Error("Key '" + key + "' is not defined in the blueprint!");
+                        binStr += formatter["to" + ((keyLengthByteType !== "double") ? "U" : "") + capitalizeFirstLetter(keyLengthByteType)](keys.indexOf(key)) + blueprint[key].encode(obj[key]);
+                    }
                 }
                 
                 return binStr;
@@ -136,9 +245,21 @@
             this.decode = function(binStr) {
                 var obj = {};
                 var binStrRef = typeof binStr === "string" ? {val: binStr} : binStr;
-                
-                for (var key in blueprint) {
-                    obj[key] = blueprint[key].decode(binStrRef);
+            
+                if (!loose) {
+                    for (var key in blueprint) {
+                        obj[key] = blueprint[key].decode(binStrRef);
+                    }
+                } else {
+                    var numberOfKeys = formatter["from" + ((keyLengthByteType !== "double") ? "U" : "") + capitalizeFirstLetter(keyLengthByteType)](binStrRef.val.slice(0, keyLengthByteLength));
+                    binStrRef.val = binStrRef.val.slice(keyLengthByteLength);
+
+                    for (var i = 0; i < numberOfKeys; i++) {
+                        var key = keys[formatter["from" + ((keyLengthByteType !== "double") ? "U" : "") + capitalizeFirstLetter(keyLengthByteType)](binStrRef.val.slice(0, keyLengthByteLength))];
+                        binStrRef.val = binStrRef.val.slice(keyLengthByteLength);
+
+                        obj[key] = blueprint[key].decode(binStrRef);
+                    }
                 }
                 
                 return obj;
@@ -251,47 +372,47 @@
     // Helper object, used to convert from and to different number types
     var formatter = {
         fromUByte: function(string) {
-            return string.charCodeAt(0) % MAX_VALUES.byte;
+            return adjustedMod(string.charCodeAt(0), MAX_VALUES.byte);
         },
         
         toUByte: function(number) {
-            number = Math.round(number) % MAX_VALUES.byte;
+            number = adjustedMod(Math.round(number), MAX_VALUES.byte);
             
             return String.fromCharCode(number);
         },
         
         fromUShort: function(string) {
-            return (string.charCodeAt(0) * MAX_VALUES.byte + string.charCodeAt(1)) % MAX_VALUES.short;
+            return adjustedMod((string.charCodeAt(0) * MAX_VALUES.byte + string.charCodeAt(1)), MAX_VALUES.short);
         },
         
         toUShort: function(number) {
-            number = Math.round(number) % MAX_VALUES.short;
+            number = adjustedMod(Math.round(number), MAX_VALUES.short);
             
             return String.fromCharCode(Math.floor(number / MAX_VALUES.byte)) + String.fromCharCode(number % MAX_VALUES.byte);
         },
         
         fromUTribyte: function(string) {
-            return (string.charCodeAt(0) * MAX_VALUES.short + string.charCodeAt(1) * MAX_VALUES.byte + string.charCodeAt(2)) % MAX_VALUES.tribyte;
+            return adjustedMod((string.charCodeAt(0) * MAX_VALUES.short + string.charCodeAt(1) * MAX_VALUES.byte + string.charCodeAt(2)), MAX_VALUES.tribyte);
         },
         
         toUTribyte: function(number) {
-            number = Math.round(number) % MAX_VALUES.tribyte;
+            number = adjustedMod(Math.round(number), MAX_VALUES.tribyte);
             
             return String.fromCharCode(Math.floor(number / (MAX_VALUES.short))) + String.fromCharCode(Math.floor((number % (MAX_VALUES.short)) / MAX_VALUES.byte)) + String.fromCharCode(number % MAX_VALUES.byte);
         },
         
         fromUInt: function(string) {
-            return (string.charCodeAt(0) * MAX_VALUES.tribyte + string.charCodeAt(1) * MAX_VALUES.short + string.charCodeAt(2) * MAX_VALUES.byte + string.charCodeAt(3)) % MAX_VALUES.int;
+            return adjustedMod((string.charCodeAt(0) * MAX_VALUES.tribyte + string.charCodeAt(1) * MAX_VALUES.short + string.charCodeAt(2) * MAX_VALUES.byte + string.charCodeAt(3)), MAX_VALUES.int);
         },
         
         toUInt: function(number) {
-            number = Math.round(number) % MAX_VALUES.int;
+            number = adjustedMod(Math.round(number), MAX_VALUES.int);
             
             return String.fromCharCode(Math.floor(number / (MAX_VALUES.tribyte))) + String.fromCharCode(Math.floor((number % (MAX_VALUES.tribyte)) / (MAX_VALUES.short))) + String.fromCharCode(Math.floor(number % (MAX_VALUES.short) / MAX_VALUES.byte)) + String.fromCharCode(number % MAX_VALUES.byte);
         },
         
         /*
-            Signed datatypes simply shift values upon encoding and revert the shift when decoding. Might use 2's
+            Signed datatypes simply shift values upon encoding and revert the shift when decoding. Might use two's
             complement in the future, though. This works for now.
         */
         
