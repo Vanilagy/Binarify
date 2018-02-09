@@ -178,6 +178,9 @@ new binary.Dynamic(pairs)
 Converter.encode({key: desiredKey, value: dataToEncode});
 /* Desired key has to be a key of the specified pairs object, and the structure of
    that key's value has to match that of dataToEncode. */
+   
+Converter.encode(desiredKey, dataToEncode);
+/* Alternative, cleaner way of passing key and value. Only works when the Dynamic Converter is at the top-most layer of the data structure. */
 ```
 ### Example:
 ```javascript
