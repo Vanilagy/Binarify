@@ -1,5 +1,5 @@
 /*
-    BinaryJS v1.4.1
+    BinaryJS v1.4.2
     @Vanilagy
 */
 
@@ -64,6 +64,8 @@
     */
     
     var binary = {
+        version: "1.4.2", // Can be used to compare client and server
+        
         Boolean: function() {            
             this.encode = function(boolean) {
                 return formatter.toUByte(boolean ? 1 : 0);
