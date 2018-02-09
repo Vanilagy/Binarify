@@ -18,6 +18,7 @@ There are different types of Converters, each built for their respective datatyp
 [binary.Boolean](#binaryboolean)<br>
 [binary.Number](#binarynumber)<br>
 [binary.String](#binarystring)<br>
+[binary.HexString](#binaryhexstring)<br>
 [binary.Object](#binaryobject)<br>
 [binary.Array](#binaryarray)<br>
 [binary.Dynamic](#binarydynamic)<br>
@@ -34,6 +35,12 @@ new binary.Boolean()
 ```javascript
 Converter.encode(boolean)
 ```
+### Example:
+```javascript
+var bool = new binary.Boolean();
+var encodedBool = bool.encode(4 < 7);
+```
+
 ---
 ## binary.Number
 Used for numbers of the specified bytetype.<br>
@@ -47,6 +54,14 @@ new binary.Number(type)
 ```javascript
 Converter.encode(number)
 ```
+### Example:
+```javascript
+var appleCount = new binary.Number("uShort");
+var applesHarvested = appleCount.encode(7415);
+
+var monthlyPay = new binary.Number("float");
+var payInJune = monthlyPay.encode(5012.83);
+```
 
 ---
 ## binary.String
@@ -56,11 +71,38 @@ Used for strings.
 new binary.String(length)
 ```
 *Arguments:*<br>
-- `length` - Specifies the bytetype storing the length of the string. Accepted values are **byte**, **short**, **tribyte**, **int**, **float**, **double** and **nullTer** (null-terminated string with no length limit). Defaults to **nullTer**.
+- `length` - Specifies the bytetype storing the length of the string. Accepted values are **byte**, **short**, **tribyte**, **int**, **float**, **double**, **nullTer** (null-terminated string with no length limit), **or** an integer (used to define a string with *fixed length*). Defaults to **nullTer**.
 ### Encoding syntax:
 ```javascript
 Converter.encode(string)
 ```
+### Example:
+```javascript
+var message = new binary.String("short"); // max length: 2^16 - 1
+var encodedMessage = message.encode("The quick brown fox jumps over the lazy dog.");
+
+var dateStr = new binary.String(10); // fixed length
+var encodedDate = dateStr.encode("24-02-1955");
+```
+
+---
+## binary.HexString
+Used for hexadecimal strings. Stores them in about half the bytesize of what a regular string would require.
+### Instanciation syntax:
+```javascript
+new binary.HexString([length])
+```
+*Arguments:*<br>
+- `length` - *Optional.* Can be used to specify an exact length for the hex string (saves a few bytes).
+### Encoding syntax:
+```javascript
+Converter.encode(hexString)
+```
+### Example:
+```javascript
+var SHA1 = new binary.HexString(40); // fixed length of 40
+var encodedHash = SHA1.encode("74738ff55367e9589aee98fffdcd187694028007");
+``` 
 
 ---
 ## binary.Object
@@ -100,7 +142,7 @@ new binary.Array(pattern[, repeatSize])
 ```
 *Arguments:*<br>
 - `pattern` - An array containing *Converter* objects. The order of these objects will set the pattern for this array.
-- `repeatSize` - Specifies the bytetype storing the amount of pattern repitions. Accepted values are **byte**, **short**, **tribyte**, **int**, **float** and **double**. If omitted, only inputs with the same array length as the pattern are accepted.
+- `repeatSize` - *Optional.* Specifies the bytetype storing the amount of pattern repitions. Accepted values are **byte**, **short**, **tribyte**, **int**, **float** and **double**. If omitted, only inputs with the same array length as the pattern are accepted.
 ### Encoding syntax:
 ```javascript
 Converter.encode(array)
