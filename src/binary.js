@@ -1,5 +1,5 @@
 /*
-    BinaryJS v1.4.2
+    BinaryJS v1.4.3
     @Vanilagy
 */
 
@@ -64,7 +64,7 @@
     */
     
     var binary = {
-        version: "1.4.2", // Can be used to compare client and server
+        version: "1.4.3", // Can be used to compare client and server
         
         Boolean: function() {            
             this.encode = function(boolean) {
@@ -143,9 +143,9 @@
                         binStrRef.val = binStrRef.val.slice(output.length + 1);
                     } else {
                         var typeSize = getLengthByType(size);
-                        var length = formatter["fromU" + capitalizeFirstLetter(size)](binStrRef.val.slice(0, typeSize));
-                        output = binStrRef.val.slice(typeSize, typeSize + length);
-                        binStrRef.val = binStrRef.val.slice(typeSize + length);
+                        var len = formatter["fromU" + capitalizeFirstLetter(size)](binStrRef.val.slice(0, typeSize));
+                        output = binStrRef.val.slice(typeSize, typeSize + len);
+                        binStrRef.val = binStrRef.val.slice(typeSize + len);
                     }
                 } else {
                     output = binStrRef.val.slice(0, length);
