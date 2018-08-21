@@ -48,10 +48,10 @@ var encodedBool = bool.encode(4 < 7);
 Used for numbers of the specified bytetype.<br>
 ### Instanciation syntax:
 ```javascript
-new binary.Number(type)
+new binary.Number([type])
 ```
 *Arguments:*<br>
-- `type` - The bytetype which the number will be encoded in. Accepted values are **uByte**, **sByte**, **uShort**, **sShort**, **uTribyte**, **sTribyte**, **uInt**, **sInt**, **float** and **double**. Defaults to **double**.
+- `type` - *Optional.* The bytetype which the number will be encoded in. Accepted values are **uByte**, **sByte**, **uShort**, **sShort**, **uTribyte**, **sTribyte**, **uInt**, **sInt**, **float** and **double**. Defaults to **double** if not set.
 ### Encoding syntax:
 ```javascript
 Converter.encode(number)
@@ -70,10 +70,10 @@ var payInJune = monthlyPay.encode(5012.83);
 Used for strings.
 ### Instanciation syntax:
 ```javascript
-new binary.String(length)
+new binary.String([length])
 ```
 *Arguments:*<br>
-- `length` - Specifies the bytetype storing the length of the string. Accepted values are **byte**, **short**, **tribyte**, **int**, **float**, **double**, **nullTer** (null-terminated string with no length limit), **or** an integer (used to define a string with *fixed length*). Defaults to **nullTer**.
+- `length` - *Optional.* Specifies the bytetype storing the length of the string. Accepted values are **byte**, **short**, **tribyte**, **int**, **float**, **double**, **nullTer** (null-terminated string with no length limit), **or** an integer (used to define a string with *fixed length*, resulting in saved bytes). Strings longer than the possible storable length will be shortened. Defaults to **nullTer** if not set.
 ### Encoding syntax:
 ```javascript
 Converter.encode(string)
@@ -145,7 +145,7 @@ new binary.Array(pattern[, repeatSize])
 ```
 *Arguments:*<br>
 - `pattern` - An array containing *Converter* objects. The order of these objects will set the pattern for this array.
-- `repeatSize` - *Optional.* Specifies the bytetype storing the amount of pattern repitions. Accepted values are **byte**, **short**, **tribyte**, **int**, **float** and **double**. If omitted, only inputs with the same array length as the pattern are accepted.
+- `repeatSize` - *Optional.* Specifies the bytetype storing the amount of pattern repitions. Accepted values are **byte**, **short**, **tribyte**, **int**, **float**, **double** or an integer (used to define a *fixed amount* of pattern repetitions, resulting in saved bytes). If omitted, only inputs with the same array length as the pattern are accepted.
 ### Encoding syntax:
 ```javascript
 Converter.encode(array)
@@ -172,7 +172,7 @@ Used for cases in which the programmer can't predetermine or predict the require
 new binary.Dynamic(pairs)
 ```
 *Arguments:*<br>
-- `pairs` - An associative object, where every key points to a Converter object.
+- `pairs` - An associative object, where every key points to a Converter object which will define the datatype for that specific key.
 ### Encoding syntax:
 ```javascript
 Converter.encode({key: desiredKey, value: dataToEncode});
