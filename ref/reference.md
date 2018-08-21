@@ -73,7 +73,7 @@ Used for strings.
 new binary.String([length])
 ```
 *Arguments:*<br>
-- `length` - *Optional.* Specifies the bytetype storing the length of the string. Accepted values are **byte**, **short**, **tribyte**, **int**, **float**, **double**, **nullTer** (null-terminated string with no length limit), **or** an integer (used to define a string with *fixed length*, resulting in saved bytes). Strings longer than the possible storable length will be shortened. Defaults to **nullTer** if not set.
+- `length` - *Optional.* Specifies the bytetype storing the length of the string. Accepted values are **byte**, **short**, **tribyte**, **int**, **float**, **double**, **nullTer** (null-terminated string with no length limit), **or** an integer (used to define a string with *fixed length*, resulting in saved bytes). Inputs longer than the possible storable length will be shortened. Defaults to **nullTer** if not set.
 ### Encoding syntax:
 ```javascript
 Converter.encode(string)
