@@ -1,5 +1,5 @@
 /*
-    BinaryJS v1.5.0
+    BinaryJS v1.6.1
     @Vanilagy
 */
 
@@ -60,7 +60,7 @@
     */
     
     var binary = {
-        version: "1.6.0", // Can be used to compare client and server
+        version: "1.6.1", // Can be used to compare client and server
         
         Boolean: function() {            
             this.encode = function(boolean) {
