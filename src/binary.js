@@ -60,7 +60,7 @@
     */
     
     var binary = {
-        version: "1.5.0", // Can be used to compare client and server
+        version: "1.6.0", // Can be used to compare client and server
         
         Boolean: function() {            
             this.encode = function(boolean) {
@@ -405,6 +405,12 @@
         }
     };
     
+    // Buffer setup to allow for byte-reading of floating-point numbers following the IEEE 754 standard
+    var floatBuffer = new ArrayBuffer(8);
+    var floatByteView = new Uint8Array(floatBuffer),
+        floatView = new Float32Array(floatBuffer),
+        doubleView = new Float64Array(floatBuffer);
+    
     // Helper object, used to convert from and to different number types
     var formatter = {
         to: {
@@ -448,75 +454,17 @@
                 return this.uInt(number + MAX_VALUES.int / 2);
             },
             
-            float: function(number) {
-                if (number === 0) { // Triggers special encoding for 0
-                    return String.fromCharCode((1 / number > 0) ? 0 : 128) + "\u0000\u0000\u0000";
-                } else if (isNaN(number)) {
-                    return "\u007f\u00c0\u0000\u0000"; // 127, 192, 0, 0 (exp 255, significand non-zero)
-                } else {
-                    var abs = Math.abs(number);
-                    var exp = Math.min(128, Math.max(-127, Math.floor(Math.log2(abs))));
-
-                    if (exp === 128) { // Infinity
-                        return String.fromCharCode(((number > 0) ? 0 : 128) + 127) + "\u0080\u0000\u0000";
-                    } else {
-                        var bias = exp + 127;
-                        var frac = (abs / Math.pow(2, exp) - 1) * 128;
-                        var truncFrac = frac | 0;
-
-                        // Build string by continuously dividing up the number to get the mantissa to wanted precision
-                        var output = String.fromCharCode(((number > 0) ? 0 : 128) + (bias >>> 1)) + String.fromCharCode((bias % 2) * 128 + truncFrac);
-                        frac = (frac - truncFrac) * 256;
-                        truncFrac = frac | 0;
-                        output += String.fromCharCode(truncFrac);
-                        frac = (frac - truncFrac) * 256;
-                        output += String.fromCharCode(frac | 0);
-
-                        return output;
-                    }
-                }
+            float: function(number) { 
+                floatView[0] = number;
+                
+                // No loops because performance fetish
+                return String.fromCharCode(floatByteView[0]) + String.fromCharCode(floatByteView[1]) + String.fromCharCode(floatByteView[2]) + String.fromCharCode(floatByteView[3]);
             },
             
             double: function(number) {
-                var bits;
-
-                if (number === 0) {
-                    return String.fromCharCode((1 / number > 0) ? 0 : 128) + "\u0000\u0000\u0000\u0000\u0000\u0000\u0000";
-                } else if (isNaN(number)) {
-                    return "\u007f\u00f8\u0000\u0000\u0000\u0000\u0000\u0000"; // 127, 248, 0, 0, 0, 0, 0, 0 (exp 2047, significand non-zero)
-                } else {
-                    var abs = Math.abs(number);
-                    var exp = Math.min(1024, Math.max(-1023, Math.floor(Math.log2(abs))));
-
-                    if (exp === 1024) {
-                        return String.fromCharCode(((number > 0) ? 0 : 128) + 127) + "\u00f0\u0000\u0000\u0000\u0000\u0000\u0000";
-                    } else {
-                        var bias = exp + 1023;
-                        var frac = (abs / Math.pow(2, exp) - 1) * 16;
-                        var truncFrac = frac | 0;
-
-                        var output = String.fromCharCode(((number > 0) ? 0 : 128) + (bias >>> 4)) + String.fromCharCode((bias % 16) * 16 + truncFrac);
-                        frac = (frac - truncFrac) * 256;
-                        truncFrac = frac | 0;
-                        output += String.fromCharCode(truncFrac);
-                        frac = (frac - truncFrac) * 256;
-                        truncFrac = frac | 0;
-                        output += String.fromCharCode(truncFrac);
-                        frac = (frac - truncFrac) * 256;
-                        truncFrac = frac | 0;
-                        output += String.fromCharCode(truncFrac);
-                        frac = (frac - truncFrac) * 256;
-                        truncFrac = frac | 0;
-                        output += String.fromCharCode(truncFrac);
-                        frac = (frac - truncFrac) * 256;
-                        truncFrac = frac | 0;
-                        output += String.fromCharCode(truncFrac);
-                        frac = (frac - truncFrac) * 256;
-                        output += String.fromCharCode(frac | 0);
-
-                        return output;
-                    }
-                }
+                doubleView[0] = number;
+                
+                return String.fromCharCode(floatByteView[0]) + String.fromCharCode(floatByteView[1]) + String.fromCharCode(floatByteView[2]) + String.fromCharCode(floatByteView[3]) + String.fromCharCode(floatByteView[4]) + String.fromCharCode(floatByteView[5]) + String.fromCharCode(floatByteView[6]) + String.fromCharCode(floatByteView[7]);
             }
         },
         from: {
@@ -552,54 +500,26 @@
                 return this.uInt(string) - MAX_VALUES.int / 2;
             },
             
-            float: function(string) {            
-                // Get true exponent by offsetting by the exponent bias
-                var exp = (string.charCodeAt(0) % 128) * 2 + ((string.charCodeAt(1) >= 128) ? 1 : 0) - 127;
-                var sign = (string.charCodeAt(0) >= 128) ? -1 : 1;
-
-                if (exp === -127) { // Special case for 0
-                    return 0 * sign;
-                } else if (exp === 128) { // Special case for NaN or Infinity
-                    if ((string.charCodeAt(1) & 64) === 0) { // Check if significand is zero
-                        return Infinity * sign;
-                    } else {
-                        return NaN;
-                    }
-                }
-
-                // Add more and more precision to fraction
-                var frac = 1;
-                frac += (string.charCodeAt(1) % 128) / 128;
-                frac += (string.charCodeAt(2)) / 128 / 256;
-                frac += (string.charCodeAt(3)) / 128 / 256 / 256;
-
-                return sign * Math.pow(2, exp) * frac;
+            float: function(string) {
+                floatByteView[0] = string.charCodeAt(0);
+                floatByteView[1] = string.charCodeAt(1);
+                floatByteView[2] = string.charCodeAt(2);
+                floatByteView[3] = string.charCodeAt(3);
+                
+                return floatView[0];
             },
             
             double: function(string) {
-                var exp = (string.charCodeAt(0) % 128) * 16 + ((string.charCodeAt(1) & 240) / 16) - 1023;
-                var sign = (string.charCodeAt(0) >= 128) ? -1 : 1;
-
-                if (exp === -1023) {
-                    return 0 * sign;
-                } else if (exp === 1024) {
-                    if ((string.charCodeAt(1) & 8) === 0) {
-                        return Infinity * sign;
-                    } else {
-                        return NaN;
-                    }
-                }
-
-                var frac = 1;
-                frac += (string.charCodeAt(1) % 16) / 16;
-                frac += string.charCodeAt(2) / 16 / 256;
-                frac += string.charCodeAt(3) / 16 / 256 / 256;
-                frac += string.charCodeAt(4) / 16 / 256 / 256 / 256;
-                frac += string.charCodeAt(5) / 16 / 256 / 256 / 256 / 256;
-                frac += string.charCodeAt(6) / 16 / 256 / 256 / 256 / 256 / 256;
-                frac += string.charCodeAt(7) / 16 / 256 / 256 / 256 / 256 / 256 / 256;
-
-                return sign * Math.pow(2, exp) * frac;
+                floatByteView[0] = string.charCodeAt(0);
+                floatByteView[1] = string.charCodeAt(1);
+                floatByteView[2] = string.charCodeAt(2);
+                floatByteView[3] = string.charCodeAt(3);
+                floatByteView[4] = string.charCodeAt(4);
+                floatByteView[5] = string.charCodeAt(5);
+                floatByteView[6] = string.charCodeAt(6);
+                floatByteView[7] = string.charCodeAt(7);
+                
+                return doubleView[0];
             }
         }
     };
