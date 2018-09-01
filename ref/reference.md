@@ -267,7 +267,7 @@ Converter.encode(field) // An object where each key is an attribute and has a va
 ```javascript
 var drinkProperties = new Binarify.BitField(["isCold", "isAlcoholic", "isSparkling", "isSweet"]);
 
-var encodedCode = drinkProperties.encode({
+var encodedCoke = drinkProperties.encode({
     isCold: true,
     isAlcoholic: false,
     isSparkling: true,
