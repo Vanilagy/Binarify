@@ -1,5 +1,5 @@
 /*
-    Binarify v2.0.2
+    Binarify v2.1.0
     @Vanilagy
 */
 
@@ -59,7 +59,7 @@
         input.
     */
     var Binarify = {
-        version: "2.0.2", // Can be used to compare client and server
+        version: "2.1.0", // Can be used to compare client and server
         
         Boolean: function() {            
             this.encode = function(boolean) {
@@ -380,6 +380,40 @@
                 index += keyLengthByteLength;
                 
                 return {key: key, value: (pairs[key] === null) ? null : pairs[key].decode(binStr, true)};
+            };
+        },
+        
+        Set: function(elements) {
+            var stringifiedElements = {};
+            for (var i = 0; i < set.length; i++) {
+                try {
+                    stringifiedElements[JSON.stringify(elements[i])] = i;
+                } catch(e) {
+                    throw new Error("Set element " + elements[i] + " couldn't be serialized.", e);
+                }
+            }
+            
+            var keyLengthByteLength = Math.ceil(Math.log2(elements.length) / 8) || 1;            
+            var keyLengthByteType = getTypeByLength(keyLengthByteLength);
+            keyLengthByteLength = getLengthByType(keyLengthByteType); // Set to 8 if type is double
+            
+            this.encode = function(element) {
+                var index = stringifiedElements[JSON.stringify(element)];
+                
+                if (index !== undefined) {
+                    return formatter.to[keyLengthByteType](index);
+                } else {
+                    throw new Error("Element " + element + " not specified in Set!");
+                }
+            };
+            
+            this.decode = function(binStr, isInternalCall) {
+                if (isInternalCall !== true) index = 0;
+                
+                var elementIndex = formatter.from[keyLengthByteType](binStr.substr(index, keyLengthByteLength));
+                index += keyLengthByteLength;
+                
+                return elements[elementIndex];
             };
         },
 

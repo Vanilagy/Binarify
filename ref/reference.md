@@ -24,6 +24,7 @@ There are different types of Converters, each built for their respective datatyp
 [Binarify.Object](#binarifyobject)<br>
 [Binarify.Array](#binarifyarray)<br>
 [Binarify.Dynamic](#binarifydynamic)<br>
+[Binarify.Set](#binarifyset)<br>
 [Binarify.NullWrapper](#binarifynullwrapper)<br>
 
 ---
@@ -215,6 +216,37 @@ function handleMessage(msg) {
     if (msg.key === "sayNumber") console.log(msg.value);
 }
 handleMessage(messageTypes.decode(messageTypes.encode({key: "sayHi" /* 'value' does not need to be specified in this case */})));
+```
+
+---
+## Binarify.Set
+Used to encode a reference to an element of a predefined set. Good if you know the value can only be a few things.
+### Instanciation syntax:
+```javascript
+new Binarify.Set(elements)
+```
+*Arguments:*<br>
+- `elements` - An array specifying all the possible elements.
+### Encoding syntax:
+```javascript
+Converter.encode(element) // element must be contained in set
+```
+### Example:
+```javascript
+var set = new Binarify.Set(["a", "b", "c", true, Math.PI, {foo: "bar"}, [0, 1, 2]]);
+
+// These all work
+set.decode(set.encode("a"));
+set.decode(set.encode("b"));
+set.decode(set.encode("c"));
+set.decode(set.encode(true));
+set.decode(set.encode(Math.PI));
+set.decode(set.encode({foo: "bar"}));
+set.decode(set.encode([0, 1, 2]));
+
+// These don't work
+set.decode(set.encode(Math.E));
+set.decode(set.encode({name: "John Doe"}));
 ```
 
 ---
