@@ -1,5 +1,5 @@
 /*
-    Binarify v2.1.0
+    Binarify v2.1.1
     @Vanilagy
 */
 
@@ -59,7 +59,7 @@
         input.
     */
     var Binarify = {
-        version: "2.1.0", // Can be used to compare client and server
+        version: "2.1.1", // Can be used to compare client and server
         
         Boolean: function() {            
             this.encode = function(boolean) {
@@ -383,7 +383,7 @@
             };
         },
         
-        Set: function(elements) {
+        SetElement: function(elements) {
             var stringifiedElements = {};
             for (var i = 0; i < set.length; i++) {
                 try {
