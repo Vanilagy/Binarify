@@ -3,7 +3,7 @@ Binarify is an easy-to-use JavaScript library for encoding complex data structur
 
 The issue with sending data as JSON (or any other serialized format) is that it not only sends the data, but also the data structure every time. Additionally, all data is simply sent in string format and not in its actual byte representation. That's a waste of bandwidth, and bandwidth is limited. [Binary protocols](https://en.wikipedia.org/wiki/Binary_protocol) on the other hand send data in its raw bytes, which makes it faster for both networks and computers. The only downside is that a binary protocol is not human-readable and usually quite complex.
 
-This is where Binarify comes in: *It allows you to define your own binary protocol, and therefore is meant to simplify binary communication for real-time web applications where network efficiency is key.*
+This is where Binarify comes in: **It allows you to define your own binary protocol, and therefore is meant to simplify binary communication for real-time web applications where network efficiency is key.**
 
 ## Functionality
 [Read full documentation](./ref/reference.md)

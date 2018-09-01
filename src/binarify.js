@@ -1,5 +1,5 @@
 /*
-    Binarify v2.0.0
+    Binarify v2.0.1
     @Vanilagy
 */
 
@@ -59,7 +59,7 @@
         input.
     */
     var Binarify = {
-        version: "2.0.0", // Can be used to compare client and server
+        version: "2.0.1", // Can be used to compare client and server
         
         Boolean: function() {            
             this.encode = function(boolean) {
