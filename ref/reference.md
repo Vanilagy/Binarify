@@ -252,7 +252,7 @@ elem.decode(elem.encode({name: "John Doe"}));
 
 ---
 ## Binarify.BitField
-Used to encode a [bit field](https://en.wikipedia.org/wiki/Bit_field). This is great if you need to encode many booleans in a group.
+Used to encode a boolean [bit field](https://en.wikipedia.org/wiki/Bit_field). This is great if you need to encode many booleans in a group.
 ###
 ```javascript
 new Binarify.BitField(attributes)
