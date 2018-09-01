@@ -1,5 +1,5 @@
-# BinaryJS Reference
-In BinaryJS, Converter objects, which define a certain use-specific datatype or structure, have to be created first before any encoding/decoding can be performed.
+# Binarify Reference
+In Binarify, Converter objects, which define a certain use-specific datatype or structure, have to be created first before any encoding/decoding can be performed.
 
 All Converter objects come with two methods:
 
@@ -17,21 +17,21 @@ Converter.decode(Converter.encode(data)) === data // if data matches the datatyp
 
 There are different types of Converters, each built for their respective datatype/structure:
 
-[binary.Boolean](#binaryboolean)<br>
-[binary.Number](#binarynumber)<br>
-[binary.String](#binarystring)<br>
-[binary.HexString](#binaryhexstring)<br>
-[binary.Object](#binaryobject)<br>
-[binary.Array](#binaryarray)<br>
-[binary.Dynamic](#binarydynamic)<br>
-[binary.NullWrapper](#binarynullwrapper)<br>
+[Binarify.Boolean](#binarifyboolean)<br>
+[Binarify.Number](#binarifynumber)<br>
+[Binarify.String](#binarifystring)<br>
+[Binarify.HexString](#binarifyhexstring)<br>
+[Binarify.Object](#binarifyobject)<br>
+[Binarify.Array](#binarifyarray)<br>
+[Binarify.Dynamic](#binarifydynamic)<br>
+[Binarify.NullWrapper](#binarifynullwrapper)<br>
 
 ---
-## binary.Boolean
+## Binarify.Boolean
 Used for true/false values.<br>
 ### Instanciation syntax:
 ```javascript
-new binary.Boolean()
+new Binarify.Boolean()
 ```
 ### Encoding syntax:
 ```javascript
@@ -39,16 +39,16 @@ Converter.encode(boolean)
 ```
 ### Example:
 ```javascript
-var bool = new binary.Boolean();
+var bool = new Binarify.Boolean();
 var encodedBool = bool.encode(4 < 7);
 ```
 
 ---
-## binary.Number
+## Binarify.Number
 Used for numbers of the specified bytetype.<br>
 ### Instanciation syntax:
 ```javascript
-new binary.Number([type])
+new Binarify.Number([type])
 ```
 *Arguments:*<br>
 - `type` - *Optional.* The bytetype which the number will be encoded in. Accepted values are **uByte**, **sByte**, **uShort**, **sShort**, **uTribyte**, **sTribyte**, **uInt**, **sInt**, **float** and **double**. Defaults to **double** if not set.
@@ -58,19 +58,19 @@ Converter.encode(number)
 ```
 ### Example:
 ```javascript
-var appleCount = new binary.Number("uShort");
+var appleCount = new Binarify.Number("uShort");
 var applesHarvested = appleCount.encode(7415);
 
-var monthlyPay = new binary.Number("float");
+var monthlyPay = new Binarify.Number("float");
 var payInJune = monthlyPay.encode(5012.83);
 ```
 
 ---
-## binary.String
+## Binarify.String
 Used for strings.
 ### Instanciation syntax:
 ```javascript
-new binary.String([length])
+new Binarify.String([length])
 ```
 *Arguments:*<br>
 - `length` - *Optional.* Specifies the bytetype storing the length of the string. Accepted values are **byte**, **short**, **tribyte**, **int**, **float**, **double**, **nullTer** (null-terminated string with no length limit), **or** an integer (used to define a string with *fixed length*, resulting in saved bytes). Inputs longer than the possible storable length will be shortened. Defaults to **nullTer** if not set.
@@ -80,19 +80,19 @@ Converter.encode(string)
 ```
 ### Example:
 ```javascript
-var message = new binary.String("short"); // max length: 2^16 - 1
+var message = new Binarify.String("short"); // max length: 2^16 - 1
 var encodedMessage = message.encode("The quick brown fox jumps over the lazy dog.");
 
-var dateStr = new binary.String(10); // fixed length
+var dateStr = new Binarify.String(10); // fixed length
 var encodedDate = dateStr.encode("24-02-1955");
 ```
 
 ---
-## binary.HexString
+## Binarify.HexString
 Used for hexadecimal strings. Stores them in about half the bytesize of what a regular string would require.
 ### Instanciation syntax:
 ```javascript
-new binary.HexString([length])
+new Binarify.HexString([length])
 ```
 *Arguments:*<br>
 - `length` - *Optional.* Can be used to specify an exact length for the hex string (saves a few bytes).
@@ -102,16 +102,16 @@ Converter.encode(hexString)
 ```
 ### Example:
 ```javascript
-var SHA1 = new binary.HexString(40); // fixed length of 40
+var SHA1 = new Binarify.HexString(40); // fixed length of 40
 var encodedHash = SHA1.encode("74738ff55367e9589aee98fffdcd187694028007");
 ``` 
 
 ---
-## binary.Object
+## Binarify.Object
 Used for objects matching the predefined structure.
 ### Instanciation syntax:
 ```javascript
-new binary.Object(blueprint[, loose])
+new Binarify.Object(blueprint[, loose])
 ```
 *Arguments:*<br>
 - `blueprint` - An object of key-value pairs where every value points to a *Converter* object.
@@ -123,10 +123,10 @@ Converter.encode(object)
 ```
 ### Example:
 ```javascript
-var personBlueprint = new binary.Object({
-    age: new binary.Number("uByte"),
-    name: new binary.String(),
-    isChild: new binary.Boolean()
+var personBlueprint = new Binarify.Object({
+    age: new Binarify.Number("uByte"),
+    name: new Binarify.String(),
+    isChild: new Binarify.Boolean()
 });
 var person = {
     age: 42,
@@ -137,11 +137,11 @@ var encodedData = personBlueprint.encode(person);
 ```
 
 ---
-## binary.Array
+## Binarify.Array
 Used for arrays matching the predefined pattern.
 ### Instanciation syntax:
 ```javascript
-new binary.Array(pattern[, repeatSize])
+new Binarify.Array(pattern[, repeatSize])
 ```
 *Arguments:*<br>
 - `pattern` - An array containing *Converter* objects. The order of these objects will set the pattern for this array.
@@ -154,22 +154,22 @@ Converter.encode(array)
 ### Example:
 ```javascript
 // Non-repeating
-var firstAndLastNamePattern = new binary.Array([new binary.String(), new binary.String()]);
+var firstAndLastNamePattern = new Binarify.Array([new Binarify.String(), new Binarify.String()]);
 var firstAndLastName = ["John", "Doe"];
 var encodedData = firstAndLastNamePattern.encode(firstAndLastName);
 
 // Repeating (single element)
-var randomIntegersPattern = new binary.Array([new binary.Number("sInt")], "int");
+var randomIntegersPattern = new Binarify.Array([new Binarify.Number("sInt")], "int");
 var randomIntegers = [4, 75, 34, -725, 142, 92];
 var encodedData = randomIntegersPattern.encode(randomIntegers);
 ```
 
 ---
-## binary.Dynamic
+## Binarify.Dynamic
 Used for cases in which the programmer can't predetermine or predict the required datatype/structure or where varying types are expected. All possible datatypes have to be predefined and named.
 ### Instanciation syntax:
 ```javascript
-new binary.Dynamic(pairs)
+new Binarify.Dynamic(pairs)
 ```
 *Arguments:*<br>
 - `pairs` - An associative object, where every key points to a Converter object which will define the datatype for that specific key.
@@ -185,11 +185,11 @@ Converter.encode(desiredKey, dataToEncode);
 ```
 ### Example:
 ```javascript
-var chairBlueprint = new binary.Object({height: new binary.Number("float")}),
-    tableBlueprint = new binary.Object({area: new binary.Number("float")}),
-    lampBlueprint = new binary.Object({color: new binary.String()});
+var chairBlueprint = new Binarify.Object({height: new Binarify.Number("float")}),
+    tableBlueprint = new Binarify.Object({area: new Binarify.Number("float")}),
+    lampBlueprint = new Binarify.Object({color: new Binarify.String()});
     
-var furnitureArray = new binary.Array([new binary.Dynamic({
+var furnitureArray = new Binarify.Array([new Binarify.Dynamic({
     chair: chairBlueprint,
     table: tableBlueprint,
     lamp: lampBlueprint
@@ -205,9 +205,9 @@ var encodedData = furnitureArray.encode([
 ```
 Instead of assigning a key to a Converter, one can also assign it to `null`. This is useful for when the key itself carries meaning and doesn't actually need to hold any additional data.
 ```javascript
-var messageTypes = new binary.Dynamic({
+var messageTypes = new Binarify.Dynamic({
     sayHi: null,
-    sayNumber: new binary.Number()
+    sayNumber: new Binarify.Number()
 });
 
 function handleMessage(msg) {
@@ -218,11 +218,11 @@ handleMessage(messageTypes.decode(messageTypes.encode({key: "sayHi" /* 'value' d
 ```
 
 ---
-## binary.NullWrapper
+## Binarify.NullWrapper
 Used for cases where null might be passed to the converter, instead of the specified data structure.
 ### Instanciation syntax:
 ```javascript
-new binary.NullWrapper(converterObject)
+new Binarify.NullWrapper(converterObject)
 ```
 *Arguments:*<br>
 - `converterObject` - Any Converter object. Will be used to encode the data if it isn't null.
@@ -232,12 +232,12 @@ Converter.encode(data);
 ```
 ### Example:
 ```javascript
-var clientDataBlueprint = new binary.Object({
-    firstName: new binary.String(),
-    lastName: new binary.String(),
-    email: new binary.String(),
-    dateOfBirth: new binary.NullWrapper(new binary.Number("uInt")), // This...
-    phoneNumber: new binary.NullWrapper(new binary.String()) // ...and this field might be optional
+var clientDataBlueprint = new Binarify.Object({
+    firstName: new Binarify.String(),
+    lastName: new Binarify.String(),
+    email: new Binarify.String(),
+    dateOfBirth: new Binarify.NullWrapper(new Binarify.Number("uInt")), // This...
+    phoneNumber: new Binarify.NullWrapper(new Binarify.String()) // ...and this field might be optional
 });
 
 var encodedData = clientDataBlueprint.encode({

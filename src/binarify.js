@@ -1,5 +1,5 @@
 /*
-    BinaryJS v1.6.1
+    Binarify v2.0.0
     @Vanilagy
 */
 
@@ -7,7 +7,7 @@
     var MAX_VALUES = {
         byte: 256,
         short: 65536,
-        tribyte: 16777216, // Almost never used, but turns out to be a good sweetspot for some uses
+        tribyte: 16777216, // Rarely used, but turns out to be a good sweetspot for some cases
         int: 4294967296,
         float: 16777217,
         double: Number.MAX_SAFE_INTEGER
@@ -47,6 +47,9 @@
         return hexRegExp.test(str);
     }
     
+    // Current starting index used by the decoder; is set to zero any decode() method is called from the outside.
+    var index = 0;
+    
     /*
         Main object, containing all different data and structure types, each with their encoding and decoding methods.
         
@@ -54,26 +57,19 @@
         a very compact binary representation. This only works if the structure and properties of the input match those
         that the method expects. Plugging the output of the encode method into the decode method will recreate the original
         input.
-        
-        Within the decode method, the passed binary string is stored inside an object to ensure it can be passed by reference, 
-        not my value. This is necessary for nested and/or recursive decoding processes.
     */
-    
-    var binary = {
-        version: "1.6.1", // Can be used to compare client and server
+    var Binarify = {
+        version: "2.0.0", // Can be used to compare client and server
         
         Boolean: function() {            
             this.encode = function(boolean) {
                 return boolean ? "\u0001" : "\u0000";
             };
             
-            this.decode = function(binStr) {
-                var binStrRef = typeof binStr === "string" ? {val: binStr} : binStr;
+            this.decode = function(binStr, isInternalCall) {
+                if (isInternalCall !== true) index = 0;
                 
-                var output = binStrRef.val.charCodeAt(0) === 1;
-                binStrRef.val = binStrRef.val.slice(1);
-                
-                return output;
+                return binStr.charCodeAt(index++) === 1;
             };
         },
         
@@ -87,11 +83,11 @@
                 return formatter.to[type](number);
             };
             
-            this.decode = function(binStr) {
-                var binStrRef = typeof binStr === "string" ? {val: binStr} : binStr;
+            this.decode = function(binStr, isInternalCall) {
+                if (isInternalCall !== true) index = 0;
                 
-                var output = formatter.from[type](binStrRef.val.slice(0, size));
-                binStrRef.val = binStrRef.val.slice(size);
+                var output = formatter.from[type](binStr.substr(index, size));
+                index += size;
                 
                 return output;
             };
@@ -131,24 +127,24 @@
                 }
             };
             
-            this.decode = function(binStr) {
-                var binStrRef = typeof binStr === "string" ? {val: binStr} : binStr;
+            this.decode = function(binStr, isInternalCall) {
+                if (isInternalCall !== true) index = 0;
                 
                 var output;
 
                 if (!hasExactLength) {
                     if (size === "nullTer") {
-                        output = binStrRef.val.slice(0, binStrRef.val.indexOf("\u0000"));
-                        binStrRef.val = binStrRef.val.slice(output.length + 1);
+                        output = binStr.slice(index, binStr.indexOf("\u0000", index));
+                        index += output.length + 1;
                     } else {
                         var typeSize = getLengthByType(size);
-                        var len = formatter.from[size](binStrRef.val.slice(0, typeSize));
-                        output = binStrRef.val.slice(typeSize, typeSize + len);
-                        binStrRef.val = binStrRef.val.slice(typeSize + len);
+                        var len = formatter.from[size](binStr.substr(index, typeSize));
+                        output = binStr.substr(index + typeSize, len);
+                        index += typeSize + len;
                     }
                 } else {
-                    output = binStrRef.val.slice(0, length);
-                    binStrRef.val = binStrRef.val.slice(length);
+                    output = binStr.substr(index, length);
+                    index += length;
                 }
                 
                 return output;
@@ -181,16 +177,16 @@
                 return binStr;
             };
 
-            this.decode = function(binStr) {
-                var binStrRef = typeof binStr === "string" ? {val: binStr} : binStr;
+            this.decode = function(binStr, isInternalCall) {
+                if (isInternalCall !== true) index = 0;
 
                 var data;
                 if (!hasExactLength) {
-                    var lastByteFull = (binStrRef.val.charCodeAt(0) === 1) ? true : false;
-                    var endIndex = binStrRef.val.indexOf("\u0100");
-                    data = binStrRef.val.slice(1, endIndex);
+                    var lastByteFull = (binStr.charCodeAt(index) === 1) ? true : false;
+                    var endIndex = binStr.indexOf("\u0100", index);
+                    data = binStr.slice(index+1, endIndex);
                 } else {
-                    data = binStrRef.val.slice(0, Math.ceil(length / 2));
+                    data = binStr.substr(index, Math.ceil(length / 2));
                 }
 
                 var hexString = "";
@@ -210,7 +206,7 @@
                     }
                 }
 
-                binStrRef.val = binStrRef.val.slice(data.length + ((hasExactLength) ? 0 : 2));
+                index += data.length + ((hasExactLength) ? 0 : 2);
                 return hexString;
             };
         },
@@ -246,24 +242,25 @@
                 return binStr;
             };
             
-            this.decode = function(binStr) {
+            this.decode = function(binStr, isInternalCall) {
+                if (isInternalCall !== true) index = 0;
+                
                 var obj = {};
-                var binStrRef = typeof binStr === "string" ? {val: binStr} : binStr;
             
                 if (!loose) {
                     for (var i = 0; i < keys.length; i++) {
                         var key = keys[i];
-                        obj[key] = blueprint[key].decode(binStrRef);
+                        obj[key] = blueprint[key].decode(binStr, true);
                     }
                 } else {
-                    var numberOfKeys = formatter.from[keyLengthByteType](binStrRef.val.slice(0, keyLengthByteLength));
-                    binStrRef.val = binStrRef.val.slice(keyLengthByteLength);
+                    var numberOfKeys = formatter.from[keyLengthByteType](binStr.substr(index, keyLengthByteLength));
+                    index += keyLengthByteLength;
 
                     for (var i = 0; i < numberOfKeys; i++) {
-                        var key = keys[formatter.from[keyLengthByteType](binStrRef.val.slice(0, keyLengthByteLength))];
-                        binStrRef.val = binStrRef.val.slice(keyLengthByteLength);
+                        var key = keys[formatter.from[keyLengthByteType](binStr.substr(index, keyLengthByteLength))];
+                        index += keyLengthByteLength;
 
-                        obj[key] = blueprint[key].decode(binStrRef);
+                        obj[key] = blueprint[key].decode(binStr, true);
                     }
                 }
                 
@@ -322,27 +319,28 @@
                 return binStr;
             };
             
-            this.decode = function(binStr) {
+            this.decode = function(binStr, isInternalCall) {
+                if (isInternalCall !== true) index = 0;
+                
                 var arr = [];
-                var binStrRef = typeof binStr === "string" ? {val: binStr} : binStr;
                 
                 if (repeatSize) {
                     var repeats;
                     if (!hasExactLength) {
-                        repeats = formatter.from[repeatSize](binStrRef.val.slice(0, repeatSizeLength));
-                        binStrRef.val = binStrRef.val.slice(repeatSizeLength);
+                        repeats = formatter.from[repeatSize](binStr.substr(index, repeatSizeLength));
+                        index += repeatSizeLength;
                     } else {
                         repeats = repeatSize;
                     }
                     
                     for (var i = 0; i < repeats; i++) {
                         for (var j = 0; j < pattern.length; j++) {
-                            arr[i * pattern.length + j] = pattern[j].decode(binStrRef);
+                            arr[i * pattern.length + j] = pattern[j].decode(binStr, true);
                         }
                     }
                 } else {
                     for (var i = 0; i < pattern.length; i++) {
-                        arr[i] = pattern[i].decode(binStrRef);
+                        arr[i] = pattern[i].decode(binStr, true);
                     }
                 }
                 
@@ -352,7 +350,7 @@
                 
         Dynamic: function(pairs) {
             var keys = Object.keys(pairs);
-            keys.sort(); // Same reasoning as in binary.Object
+            keys.sort(); // Same reasoning as in Binarify.Object
             var keyLengthByteLength = Math.ceil(Math.log2(keys.length) / 8) || 1;            
             var keyLengthByteType = getTypeByLength(keyLengthByteLength);
             keyLengthByteLength = getLengthByType(keyLengthByteType); // Set to 8 if type is double
@@ -371,13 +369,13 @@
                 return formatter.to[keyLengthByteType](keys.indexOf(key)) + ((pairs[key] === null) ? "" : pairs[key].encode(value));
             };
             
-            this.decode = function(binStr) {
-                var binStrRef = typeof binStr === "string" ? {val: binStr} : binStr;
+            this.decode = function(binStr, isInternalCall) {
+                if (isInternalCall !== true) index = 0;
                 
-                var key = keys[formatter.from[keyLengthByteType](binStrRef.val.slice(0, keyLengthByteLength))];
-                binStrRef.val = binStrRef.val.slice(keyLengthByteLength);
+                var key = keys[formatter.from[keyLengthByteType](binStr.slice(index, keyLengthByteLength))];
+                index += keyLengthByteLength;
                 
-                return {key: key, value: (pairs[key] === null) ? null : pairs[key].decode(binStrRef)};
+                return {key: key, value: (pairs[key] === null) ? null : pairs[key].decode(binStr, true)};
             };
         },
 
@@ -390,16 +388,15 @@
                 }
             };
 
-            this.decode = function(binStr) {
-                var binStrRef = typeof binStr === "string" ? {val: binStr} : binStr;
+            this.decode = function(binStr, isInternalCall) {
+                if (isInternalCall !== true) index = 0;
 
-                var isNull = binStrRef.val.charCodeAt(0) === 0;
-                binStrRef.val = binStrRef.val.slice(1);
+                var isNull = binStr.charCodeAt(index++) === 0;
 
                 if (isNull) {
                     return null;
                 } else {
-                    return converter.decode(binStrRef);
+                    return converter.decode(binStr, true);
                 }
             }
         }
@@ -535,8 +532,8 @@
     
     // Handle exporting of the framework
     if (typeof module === "object" && typeof module.exports === "object") {
-        module.exports = binary;
+        module.exports = Binarify;
     } else {
-        (typeof window !== "undefined") ? window.binary = binary : this.binary = binary;
+        (typeof window !== "undefined") ? window.Binarify = Binarify : this.Binarify = Binarify;
     }
 })();
