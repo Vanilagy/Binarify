@@ -454,7 +454,9 @@
                 return output;
             };
             
-            this.decode = function(binStr) {
+            this.decode = function(binStr, isInternalCall) {
+                if (isInternalCall !== true) index = 0;
+                
                 var obj = {};
                 var currentIndex = 0,
                     currentCharCode = binStr.charCodeAt(index);
