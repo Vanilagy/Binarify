@@ -24,7 +24,7 @@ var decodedMessage = signedInteger.decode("ºÞh±");
 ```
 returns the original input, *987654321*.
 
-*The idea is that both the server and the client define the same data structures; that way, what the server encodes can be decoded by the client, and vise-versa.*
+**The idea is that both the server and the client define the same data structures; that way, what the server encodes can be decoded by the client, and vise-versa.**
 
 Of course, Binarify allows for much more complex and nested data structures. 
 **Example:**
