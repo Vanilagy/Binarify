@@ -25,6 +25,7 @@ There are different types of Converters, each built for their respective datatyp
 [Binarify.Array](#binarifyarray)<br>
 [Binarify.Dynamic](#binarifydynamic)<br>
 [Binarify.SetElement](#binarifysetelement)<br>
+[Binarify.BitField](#binarifybitfield)<br>
 [Binarify.NullWrapper](#binarifynullwrapper)<br>
 
 ---
@@ -247,6 +248,31 @@ elem.decode(elem.encode([0, 1, 2]));
 // These don't work
 elem.decode(elem.encode(Math.E));
 elem.decode(elem.encode({name: "John Doe"}));
+```
+
+---
+## Binarify.BitField
+Used to encode a [bit field](https://en.wikipedia.org/wiki/Bit_field). This is great if you need to encode many booleans in a group.
+###
+```javascript
+new Binarify.BitField(attributes)
+```
+*Arguments:*<br>
+- `attributes` - An array specifying all attributes of the bit field.
+### Encoding syntax:
+```javascript
+Converter.encode(field) // An object where each key is an attribute and has a value of true/false.
+```
+### Example:
+```javascript
+var drinkProperties = new Binarify.BitField(["isCold", "isAlcoholic", "isSparkling", "isSweet"]);
+
+var encodedCode = drinkProperties.encode({
+    isCold: true,
+    isAlcoholic: false,
+    isSparkling: true,
+    isSweet: true
+}); // This bitfield will be '1011'
 ```
 
 ---

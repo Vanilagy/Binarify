@@ -1,5 +1,5 @@
 /*
-    Binarify v2.1.1
+    Binarify v2.2.0
     @Vanilagy
 */
 
@@ -59,7 +59,7 @@
         input.
     */
     var Binarify = {
-        version: "2.1.1", // Can be used to compare client and server
+        version: "2.2.0", // Can be used to compare client and server
         
         Boolean: function() {            
             this.encode = function(boolean) {
@@ -212,6 +212,8 @@
         },
         
         Object: function(blueprint, loose /* If loose is set, keys in the input can be omitted */) {
+            if (blueprint === undefined) throw new Error("Can't instanciate Object without a blueprint!");
+            
             var keys = Object.keys(blueprint);
             keys.sort(); // This is done to guarantee key order across all JavaScript implementations
             
@@ -273,6 +275,8 @@
         },
         
         Array: function(pattern, repeatSize) {
+            if (pattern === undefined) throw new Error("Can't instanciate Array without a pattern!");
+            
             /*
                 If repeatSize is not given, the array will be looked at as more of an "unnamed object", simply specifying
                 a pattern of set datatypes and length.
@@ -353,6 +357,8 @@
         },
                 
         Dynamic: function(pairs) {
+            if (pairs === undefined) throw new Error("Can't instanciate Dynamic without a pair object!");
+            
             var keys = Object.keys(pairs);
             keys.sort(); // Same reasoning as in Binarify.Object
             var keyLengthByteLength = Math.ceil(Math.log2(keys.length) / 8) || 1;            
@@ -384,8 +390,10 @@
         },
         
         SetElement: function(elements) {
+            if (elements === undefined) throw new Error("Can't instanciate SetElement without an array of elements!");
+            
             var stringifiedElements = {};
-            for (var i = 0; i < set.length; i++) {
+            for (var i = 0; i < elements.length; i++) {
                 try {
                     stringifiedElements[JSON.stringify(elements[i])] = i;
                 } catch(e) {
@@ -416,8 +424,59 @@
                 return elements[elementIndex];
             };
         },
+        
+        BitField: function(attributes) {
+            if (attributes === undefined) throw new Error("Can't instanciate BitField without an array of attributes!");
+            
+            this.encode = function(obj) {
+                var output = "";
+                
+                var currentByte = 0;
+                for (var i = 0; i < attributes.length; i++) {
+                    if (i > 0 && i % 8 === 0) {
+                        output += String.fromCharCode(currentByte);
+                        currentByte = 0;
+                    }
+                    
+                    var attribute = attributes[i];
+                    if (obj[attribute] !== undefined) {
+                        if (obj[attribute] === true) {
+                            currentByte += Math.pow(2, i % 8);
+                        }
+                    } else {
+                        throw new Error("Attribute '" + attribute + "' is defined in the BitField, but wasn't passed to it in its encode method!");
+                    }
+                }
+                if (attributes.length) {
+                    output += String.fromCharCode(currentByte);
+                }
+                
+                return output;
+            };
+            
+            this.decode = function(binStr) {
+                var obj = {};
+                var currentIndex = 0,
+                    currentCharCode = binStr.charCodeAt(index);
+                
+                for (var i = 0; i < attributes.length; i++) {
+                    if (i > 0 && i % 8 === 0) {
+                        currentIndex++;
+                        currentCharCode = binStr.charCodeAt(index + currentIndex);
+                    }
+                    
+                    obj[attributes[i]] = (currentCharCode & Math.pow(2, i % 8)) > 0;
+                }
+                
+                index += Math.floor(attributes.length / 8);
+                
+                return obj;
+            };
+        },
 
         NullWrapper: function(converter) {
+            if (converter === undefined) throw new Error("Can't instanciate NulLWrapper without a Converter!");
+            
             this.encode = function(data) {
                 if (data === null) {
                     return "\u0000";
