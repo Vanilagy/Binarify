@@ -1,5 +1,5 @@
 /*
-    Binarify v2.0.1
+    Binarify v2.0.2
     @Vanilagy
 */
 
@@ -59,7 +59,7 @@
         input.
     */
     var Binarify = {
-        version: "2.0.1", // Can be used to compare client and server
+        version: "2.0.2", // Can be used to compare client and server
         
         Boolean: function() {            
             this.encode = function(boolean) {
@@ -231,12 +231,16 @@
                         binStr += blueprint[key].encode(obj[key]);
                     }
                 } else {
-                    binStr += formatter.to[keyLengthByteType](Object.keys(obj).length);
-
+                    var attributeCount = 0;
+                    
                     for (var key in obj) {
-                        if (blueprint[key] === undefined) throw new Error("Key '" + key + "' is not defined in the blueprint!");
-                        binStr += formatter.to[keyLengthByteType](keys.indexOf(key)) + blueprint[key].encode(obj[key]);
+                        if (blueprint[key] !== undefined) {
+                            binStr += formatter.to[keyLengthByteType](keys.indexOf(key)) + blueprint[key].encode(obj[key]);
+                            attributeCount++;
+                        }
                     }
+                    
+                    binStr = formatter.to[keyLengthByteType](attributeCount) + binStr;
                 }
                 
                 return binStr;
