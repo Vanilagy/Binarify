@@ -1,5 +1,5 @@
 /*
-    Binarify v2.3.1
+    Binarify v2.3.2
     @Vanilagy
 */
 
@@ -59,7 +59,7 @@
         input.
     */
     var Binarify = {
-        version: "2.3.1", // Can be used to compare client and server
+        version: "2.3.2", // Can be used to compare client and server
         
         Boolean: function() {            
             this.encode = function(boolean) {
@@ -299,7 +299,7 @@
             }
             
             this.encode = function(arr) {
-                if (arr.length % pattern.length !== 0) throw new Error("Array (length " + arr.length + ") contains at least one incomplete pattern!");
+                if (pattern.length && arr.length % pattern.length !== 0) throw new Error("Array (length " + arr.length + ") contains at least one incomplete pattern!");
                 var binStr = "";
                 
                 if (repeatSize !== undefined) {
@@ -449,7 +449,7 @@
                 
                 var currentByte = 0;
                 for (var i = 0; i < attributes.length; i++) {
-                    if (i > 0 && i % 8 === 0) {
+                    if (i % 8 === 0 && i > 0) {
                         output += String.fromCharCode(currentByte);
                         currentByte = 0;
                     }
@@ -478,7 +478,7 @@
                     currentCharCode = binStr.charCodeAt(index);
                 
                 for (var i = 0; i < attributes.length; i++) {
-                    if (i > 0 && i % 8 === 0) {
+                    if (i % 8 === 0 && i > 0) {
                         currentIndex++;
                         currentCharCode = binStr.charCodeAt(index + currentIndex);
                     }
@@ -493,10 +493,8 @@
         },
 
         NullWrapper: function(converter) {
-            if (converter === undefined) throw new Error("Can't instanciate NulLWrapper without a Converter!");
-            
             this.encode = function(data) {
-                if (data === null) {
+                if (data === null || converter === undefined) {
                     return "\u0000";
                 } else {
                     return "\u0001" + converter.encode(data);

@@ -289,7 +289,7 @@ Used for cases where null might be passed to the converter, instead of the speci
 new Binarify.NullWrapper(converterObject)
 ```
 *Arguments:*<br>
-- `converterObject` - Any Converter object. Will be used to encode the data if it isn't null.
+- `converterObject` - Any Converter object. Will be used to encode the data if it isn't null. **This argument can technically be omitted**, but then the Converter will simply convert everything to null, and only to null.
 ### Encoding syntax:
 ```javascript
 Converter.encode(data);
