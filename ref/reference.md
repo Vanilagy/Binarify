@@ -224,10 +224,11 @@ handleMessage(messageTypes.decode(messageTypes.encode({key: "sayHi" /* 'value' d
 Used to encode a reference to an element of a predefined set. Good if you know the value can only be a few things.
 ### Instanciation syntax:
 ```javascript
-new Binarify.SetElement(elements)
+new Binarify.SetElement(elements[, noSerialization])
 ```
 *Arguments:*<br>
-- `elements` - An array specifying all the possible elements.
+- `elements` - An array specifying all the possible elements. The element has to be serializable if `noSerialization` isn't `true`.
+- `noSerialization` - *Optional.* If set to `true`, elements in the `elements` array won't be serialized. This means you can encode almost everything, but will result in the direct reference to the variable being returned by `decode()` - meaning it can be changed locally and will thus differ from all parties involved. Only use if you know what you're doing, or if you want to pass functions or read-only objects. Defaults to `false`.
 ### Encoding syntax:
 ```javascript
 Converter.encode(element) // element must be contained in set
@@ -248,6 +249,11 @@ elem.decode(elem.encode([0, 1, 2]));
 // These don't work
 elem.decode(elem.encode(Math.E));
 elem.decode(elem.encode({name: "John Doe"}));
+
+/* Example for no serialization: */
+var referenceElem = new Binarify.SetElement([Math, setInterval], true);
+
+referenceElem.decode(referenceElem.encode(Math)).sqrt(25); // => 5
 ```
 
 ---

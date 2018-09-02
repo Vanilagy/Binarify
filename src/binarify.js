@@ -1,5 +1,5 @@
 /*
-    Binarify v2.2.1
+    Binarify v2.3.0
     @Vanilagy
 */
 
@@ -59,7 +59,7 @@
         input.
     */
     var Binarify = {
-        version: "2.2.1", // Can be used to compare client and server
+        version: "2.3.0", // Can be used to compare client and server
         
         Boolean: function() {            
             this.encode = function(boolean) {
@@ -389,15 +389,22 @@
             };
         },
         
-        SetElement: function(elements) {
+        SetElement: function(elements, noSerialization) {
             if (elements === undefined) throw new Error("Can't instanciate SetElement without an array of elements!");
             
-            var stringifiedElements = {};
-            for (var i = 0; i < elements.length; i++) {
-                try {
-                    stringifiedElements[JSON.stringify(elements[i])] = i;
-                } catch(e) {
-                    throw new Error("Set element " + elements[i] + " couldn't be serialized.", e);
+            if (noSerialization !== true) {
+                var stringifiedElements = {},
+                    stringifiedElementsArr = [];
+                for (var i = 0; i < elements.length; i++) {
+                    try {
+                        var json = JSON.stringify(elements[i]);
+                        if (json === undefined) throw new Error();
+
+                        stringifiedElements[json] = i;
+                        stringifiedElementsArr.push(json);
+                    } catch(e) {
+                        throw new Error("Set element " + elements[i] + " couldn't be serialized.", e);
+                    }
                 }
             }
             
@@ -406,9 +413,14 @@
             keyLengthByteLength = getLengthByType(keyLengthByteType); // Set to 8 if type is double
             
             this.encode = function(element) {
-                var index = stringifiedElements[JSON.stringify(element)];
+                var index;
+                if (noSerialization) {
+                    index = elements.indexOf(element);
+                } else {
+                    index = stringifiedElements[JSON.stringify(element)];
+                }
                 
-                if (index !== undefined) {
+                if (index !== -1) {
                     return formatter.to[keyLengthByteType](index);
                 } else {
                     throw new Error("Element " + element + " not specified in Set!");
@@ -421,7 +433,11 @@
                 var elementIndex = formatter.from[keyLengthByteType](binStr.substr(index, keyLengthByteLength));
                 index += keyLengthByteLength;
                 
-                return elements[elementIndex];
+                if (noSerialization) {
+                    return elements[elementIndex];
+                } else {
+                    return JSON.parse(stringifiedElementsArr[elementIndex]);
+                }
             };
         },
         
