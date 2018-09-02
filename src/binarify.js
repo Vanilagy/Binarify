@@ -1,5 +1,5 @@
 /*
-    Binarify v2.3.0
+    Binarify v2.3.1
     @Vanilagy
 */
 
@@ -59,7 +59,7 @@
         input.
     */
     var Binarify = {
-        version: "2.3.0", // Can be used to compare client and server
+        version: "2.3.1", // Can be used to compare client and server
         
         Boolean: function() {            
             this.encode = function(boolean) {
@@ -420,7 +420,7 @@
                     index = stringifiedElements[JSON.stringify(element)];
                 }
                 
-                if (index !== -1) {
+                if (!(index === -1 || index === undefined)) {
                     return formatter.to[keyLengthByteType](index);
                 } else {
                     throw new Error("Element " + element + " not specified in Set!");
