@@ -6,7 +6,7 @@ The issue with sending data as JSON (or any other serialized format) is that it 
 This is where Binarify comes in: **It allows you to define your own binary protocol, and therefore is meant to simplify binary communication for real-time web applications where network efficiency is key.**
 
 ## Functionality
-[Read full documentation](./ref/reference.md)
+[Read full documentation](./docs/documentation.md)
 
 Prior to sending and receiving data, a data structure first has to be defined by the user, which will act as it's own unique binary protocol used to encode and decode the use-specific data. For this, Binarify has multiple different data and structure types, each sporting their own `.encode` and `.decode` methods.
 

@@ -1,5 +1,5 @@
 /*
-    Binarify v2.3.2
+    Binarify v2.4.0
     @Vanilagy
 */
 
@@ -59,9 +59,11 @@
         input.
     */
     var Binarify = {
-        version: "2.3.2", // Can be used to compare client and server
+        version: "2.4.0", // Can be used to compare client and server
         
-        Boolean: function() {            
+        Boolean: function() {
+            this.set = function() {return this};
+            
             this.encode = function(boolean) {
                 return boolean ? "\u0001" : "\u0000";
             };
@@ -74,10 +76,17 @@
         },
         
         Number: function(type) {
-            // Defaults to JavaScript's default "double"
-            type = type || "double";
-            if (EXTENDED_NUMBER_TYPES.indexOf(type) === -1) throw new Error("Incorrect Number type '" + type + "'");
-            var size = getLengthByType(((type !== "double" && type !== "float") ? type.slice(1) : type).toLowerCase());
+            var size;
+            
+            this.set = function(typeNew) {
+                // Defaults to JavaScript's default "double"
+                type = typeNew || "double";
+                if (EXTENDED_NUMBER_TYPES.indexOf(type) === -1) throw new Error("Incorrect Number type '" + type + "'");
+                size = getLengthByType(((type !== "double" && type !== "float") ? type.slice(1) : type).toLowerCase());
+                
+                return this;
+            };
+            this.set(type);
 
             this.encode = function(number) {
                 return formatter.to[type](number);
@@ -94,18 +103,27 @@
         },
         
         String: function(maxSize) {
-            // Figure out if maxSize is a number or a number size
-            var hasExactLength = typeof maxSize === "number";
+            var hasExactLength, size, length;
+            
+            this.set = function(maxSizeNew) {
+                maxSize = maxSizeNew;
+                
+                // Figure out if maxSize is a number or a number size
+                hasExactLength = typeof maxSize === "number";
 
-            if (!hasExactLength) {
-                // Defaults to a null-terminated string
-                var size = maxSize || "nullTer";
-                if (size !== "nullTer" && ELEMENTAL_NUMBER_TYPES.indexOf(size) === -1) throw new Error("Incorrect String size number type '" + size + "'");
-            } else {
-                maxSize = Math.floor(maxSize);
-                if (maxSize < 0) throw new Error("String cannot have a fixed length shorter than 0");
-                var length = maxSize;
-            }
+                if (!hasExactLength) {
+                    // Defaults to a null-terminated string
+                    size = maxSize || "nullTer";
+                    if (size !== "nullTer" && ELEMENTAL_NUMBER_TYPES.indexOf(size) === -1) throw new Error("Incorrect String size number type '" + size + "'");
+                } else {
+                    maxSize = Math.floor(maxSize);
+                    if (maxSize < 0) throw new Error("String cannot have a fixed length shorter than 0");
+                    length = maxSize;
+                }
+                
+                return this;
+            };
+            this.set(maxSize);
             
             this.encode = function(string) {
                 if (!hasExactLength) {
@@ -122,7 +140,7 @@
                     if (string.length === length) {
                         return string;
                     } else {
-                        throw new Error("Passed string isn't of specified length " + length + "!");
+                        throw new Error("Passed string isn't of specified length " + length);
                     }
                 }
             };
@@ -152,16 +170,25 @@
         },
         
         HexString: function(length) {
-            var hasExactLength = typeof length === "number";
-
-            if (hasExactLength) {
-                length = Math.floor(length);
-                if (length < 0) throw new Error("HexString cannot have a fixed length shorter than 0");
-            }
+            var hasExactLength;
+            
+            this.set = function(lengthNew) {
+                length = lengthNew;
+                
+                hasExactLength = typeof length === "number";
+                
+                if (hasExactLength) {
+                    length = Math.floor(length);
+                    if (length < 0) throw new Error("HexString cannot have a fixed length shorter than 0");
+                }
+                
+                return this;
+            };
+            this.set(length);
 
             this.encode = function(string) {
                 if (!isHexString(string)) throw new Error("Passed string is not a HexString!");
-                if (hasExactLength && string.length !== length) throw new Error("Passed string isn't of specified length " + length + "!");
+                if (hasExactLength && string.length !== length) throw new Error("Passed string isn't of specified length " + length);
 
                 var binStr = "";
 
@@ -212,24 +239,36 @@
         },
         
         Object: function(blueprint, loose /* If loose is set, keys in the input can be omitted */) {
-            if (blueprint === undefined) throw new Error("Can't instanciate Object without a blueprint!");
+            var keys, keyLengthByteLength, keyLengthByteType;
             
-            var keys = Object.keys(blueprint);
-            keys.sort(); // This is done to guarantee key order across all JavaScript implementations
-            
-            if (loose) {
-                var keyLengthByteLength = Math.ceil(Math.log2(keys.length) / 8) || 1;            
-                var keyLengthByteType = getTypeByLength(keyLengthByteLength);
-                keyLengthByteLength = getLengthByType(keyLengthByteType); // Set to 8 if type is double
-            }
+            this.set = function(blueprintNew, looseNew) {
+                blueprint = blueprintNew;
+                loose = looseNew;
+                
+                if (blueprint === undefined) return;
+
+                keys = Object.keys(blueprint);
+                keys.sort(); // This is done to guarantee key order across all JavaScript implementations
+
+                if (loose) {
+                    keyLengthByteLength = Math.ceil(Math.log2(keys.length) / 8) || 1;            
+                    keyLengthByteType = getTypeByLength(keyLengthByteLength);
+                    keyLengthByteLength = getLengthByType(keyLengthByteType); // Set to 8 if type is double
+                }
+                
+                return this;
+            };
+            this.set(blueprint, loose);
             
             this.encode = function(obj) {
+                if (blueprint === undefined) throw new Error("Can't encode, no blueprint defined");
+                
                 var binStr = "";
                 
                 if (!loose) {
                     for (var i = 0; i < keys.length; i++) {
                         var key = keys[i];
-                        if (obj[key] === undefined) throw new Error("Key '" + key + "' is defined in the blueprint, but not in the input object!");
+                        if (obj[key] === undefined) throw new Error("Key '" + key + "' is defined in the blueprint, but not in the input object");
                         binStr += blueprint[key].encode(obj[key]);
                     }
                 } else {
@@ -275,41 +314,55 @@
         },
         
         Array: function(pattern, repeatSize) {
-            if (pattern === undefined) throw new Error("Can't instanciate Array without a pattern!");
+            var hasExactLength, repeatSizeLength;
             
-            /*
-                If repeatSize is not given, the array will be looked at as more of an "unnamed object", simply specifying
-                a pattern of set datatypes and length.
-            */
-            if (repeatSize !== undefined) {
-                // Figure out if repeatSize is a number or a number size
-                var hasExactLength = typeof repeatSize === "number";
-                var exactLength;
+            this.set = function(patternNew, repeatSizeNew) {
+                pattern = patternNew;
+                repeatSize = repeatSizeNew;
+                
+                if (pattern === undefined) return;
 
-                if (!hasExactLength) {
-                    if (ELEMENTAL_NUMBER_TYPES.indexOf(repeatSize) > -1) {
-                        var repeatSizeLength = getLengthByType(repeatSize);
+                /*
+                    If repeatSize is not given, the array will be looked at as more of an "unnamed object", simply specifying
+                    a pattern of set datatypes and length.
+                */
+                if (repeatSize !== undefined) {
+                    // Figure out if repeatSize is a number or a number size
+                    hasExactLength = typeof repeatSize === "number";
+
+                    if (!hasExactLength) {
+                        if (ELEMENTAL_NUMBER_TYPES.indexOf(repeatSize) > -1) {
+                            repeatSizeLength = getLengthByType(repeatSize);
+                        } else {
+                            throw new Error("Incorrect Array size number type '" + repeatSize + "'");
+                        }
                     } else {
-                        throw new Error("Incorrect Array size number type '" + repeatSize + "'");
+                        repeatSize = Math.floor(repeatSize);
+                        if (repeatSize < 0) throw new Error("Array cannot have a fixed length shorter than 0");
                     }
-                } else {
-                    repeatSize = Math.floor(repeatSize);
-                    if (repeatSize < 0) throw new Error("Array cannot have a fixed length shorter than 0");
                 }
-            }
+                
+                return this;
+            };
+            this.set(pattern, repeatSize);
             
             this.encode = function(arr) {
-                if (pattern.length && arr.length % pattern.length !== 0) throw new Error("Array (length " + arr.length + ") contains at least one incomplete pattern!");
+                if (pattern === undefined) throw new Error("Can't encode, no pattern defined");
+                
+                if (pattern.length && arr.length % pattern.length !== 0) throw new Error("Array (length " + arr.length + ") contains at least one incomplete pattern");
                 var binStr = "";
                 
                 if (repeatSize !== undefined) {
                     if (!hasExactLength) {
-                        arr = arr.slice(0, (MAX_VALUES[repeatSize]-1) * pattern.length);
+                        arr = arr.slice(0, (MAX_VALUES[repeatSize]-1) * pattern.length); // Trim the array so it fits into the specified repeatSize
                     } else {
                         if (arr.length !== repeatSize * pattern.length) throw new Error("Array pattern in the input isn't repeated exactly " + repeatSize + " times, as was specified");
                     }
                     
                     var repeats = Math.ceil(arr.length / pattern.length);
+                    if (repeats !== repeats /* is NaN */) {
+                        repeats = 0;
+                    }
                 
                     for (var i = 0; i < repeats; i++) {
                         for (var j = 0; j < pattern.length; j++) {
@@ -319,6 +372,8 @@
                     
                     if (!hasExactLength) binStr = formatter.to[repeatSize](repeats) + binStr; // Prepend pattern repetition count
                 } else {
+                    if (arr.length < pattern.length) throw new Error("Input array (length " + arr.length + ") has to be at least as long as the pattern array (length " + pattern.length + ")");
+                    
                     for (var i = 0; i < pattern.length; i++) {
                         binStr += pattern[i].encode(arr[i]);
                     }
@@ -332,7 +387,7 @@
                 
                 var arr = [];
                 
-                if (repeatSize) {
+                if (repeatSize !== undefined) {
                     var repeats;
                     if (!hasExactLength) {
                         repeats = formatter.from[repeatSize](binStr.substr(index, repeatSizeLength));
@@ -357,15 +412,26 @@
         },
                 
         Dynamic: function(pairs) {
-            if (pairs === undefined) throw new Error("Can't instanciate Dynamic without a pair object!");
+            var keys, keyLengthByteLength, keyLengthByteType;
             
-            var keys = Object.keys(pairs);
-            keys.sort(); // Same reasoning as in Binarify.Object
-            var keyLengthByteLength = Math.ceil(Math.log2(keys.length) / 8) || 1;            
-            var keyLengthByteType = getTypeByLength(keyLengthByteLength);
-            keyLengthByteLength = getLengthByType(keyLengthByteType); // Set to 8 if type is double
+            this.set = function(pairsNew) {
+                pairs = pairsNew;
+                
+                if (pairs === undefined) return;
+            
+                keys = Object.keys(pairs);
+                keys.sort(); // Same reasoning as in Binarify.Object
+                keyLengthByteLength = Math.ceil(Math.log2(keys.length) / 8) || 1;            
+                keyLengthByteType = getTypeByLength(keyLengthByteLength);
+                keyLengthByteLength = getLengthByType(keyLengthByteType); // Set to 8 if type is double
+                
+                return this;
+            };
+            this.set(pairs);
             
             this.encode = function(arg1, arg2) {
+                if (pairs === undefined) throw new Error("Can't encode, no pairs object defined");
+                
                 var key, value;
                 if (arg2 !== undefined) {
                     key = arg1;
@@ -375,7 +441,7 @@
                     value = arg1.value;
                 }
 
-                if (pairs[key] === undefined) throw new Error("Key '" + key + "' is not defined!");
+                if (pairs[key] === undefined) throw new Error("Key '" + key + "' is not defined");
                 return formatter.to[keyLengthByteType](keys.indexOf(key)) + ((pairs[key] === null) ? "" : pairs[key].encode(value));
             };
             
@@ -390,29 +456,40 @@
         },
         
         SetElement: function(elements, noSerialization) {
-            if (elements === undefined) throw new Error("Can't instanciate SetElement without an array of elements!");
+            var stringifiedElements, stringifiedElementsArr, keyLengthByteLength, keyLengthByteType;
             
-            if (noSerialization !== true) {
-                var stringifiedElements = {},
-                    stringifiedElementsArr = [];
-                for (var i = 0; i < elements.length; i++) {
-                    try {
-                        var json = JSON.stringify(elements[i]);
-                        if (json === undefined) throw new Error();
+            this.set = function(elementsNew, noSerializationNew) {
+                elements = elementsNew;
+                noSerialization = noSerializationNew;
+                
+                if (elements === undefined) return;
 
-                        stringifiedElements[json] = i;
-                        stringifiedElementsArr.push(json);
-                    } catch(e) {
-                        throw new Error("Set element " + elements[i] + " couldn't be serialized.", e);
+                if (!noSerialization) {
+                    stringifiedElements = {}, stringifiedElementsArr = [];
+                    for (var i = 0; i < elements.length; i++) {
+                        try {
+                            var json = JSON.stringify(elements[i]);
+                            if (json === undefined) throw new Error("Element " + elements[i] + " serialized to 'undefined', thaz' bad.");
+
+                            stringifiedElements[json] = i;
+                            stringifiedElementsArr.push(json);
+                        } catch(e) {
+                            throw new Error("Set element " + elements[i] + " couldn't be serialized", e);
+                        }
                     }
                 }
-            }
-            
-            var keyLengthByteLength = Math.ceil(Math.log2(elements.length) / 8) || 1;            
-            var keyLengthByteType = getTypeByLength(keyLengthByteLength);
-            keyLengthByteLength = getLengthByType(keyLengthByteType); // Set to 8 if type is double
+
+                keyLengthByteLength = Math.ceil(Math.log2(elements.length) / 8) || 1;            
+                keyLengthByteType = getTypeByLength(keyLengthByteLength);
+                keyLengthByteLength = getLengthByType(keyLengthByteType); // Set to 8 if type is double
+                
+                return this;
+            };
+            this.set(elements, noSerialization);
             
             this.encode = function(element) {
+                if (elements === undefined) throw new Error("Can't encode, no element array defined");
+                
                 var index;
                 if (noSerialization) {
                     index = elements.indexOf(element);
@@ -423,7 +500,7 @@
                 if (!(index === -1 || index === undefined)) {
                     return formatter.to[keyLengthByteType](index);
                 } else {
-                    throw new Error("Element " + element + " not specified in Set!");
+                    throw new Error("Element " + element + " not specified in Set");
                 }
             };
             
@@ -442,9 +519,15 @@
         },
         
         BitField: function(attributes) {
-            if (attributes === undefined) throw new Error("Can't instanciate BitField without an array of attributes!");
+            this.set = function(attributesNew) {
+                attributes = attributesNew;
+                
+                return this;
+            };
             
             this.encode = function(obj) {
+                if (attributes === undefined) throw new Error("Can't encode, no attribute array defined");
+                
                 var output = "";
                 
                 var currentByte = 0;
@@ -460,7 +543,7 @@
                             currentByte += Math.pow(2, i % 8);
                         }
                     } else {
-                        throw new Error("Attribute '" + attribute + "' is defined in the BitField, but wasn't passed to it in its encode method!");
+                        throw new Error("Attribute '" + attribute + "' is defined in the BitField, but wasn't passed to it in its encode method");
                     }
                 }
                 if (attributes.length) {
@@ -493,6 +576,12 @@
         },
 
         NullWrapper: function(converter) {
+            this.set = function(converterNew) {
+                converter = converterNew;
+                
+                return this;
+            };
+            
             this.encode = function(data) {
                 if (data === null || converter === undefined) {
                     return "\u0000";
@@ -511,7 +600,7 @@
                 } else {
                     return converter.decode(binStr, true);
                 }
-            }
+            };
         }
     };
     
