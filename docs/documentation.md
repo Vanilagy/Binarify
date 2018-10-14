@@ -1,9 +1,7 @@
-# Binarify Reference
+# Binarify Documentation
 In Binarify, Converter objects, which define a certain use-specific datatype or structure, have to be created first before any encoding/decoding can be performed.
 
 All Converter objects come with these three core methods:
-
----
 ### Converter.encode(data)
 Encodes the given data, which matches the previously defined datatype or structure, into a binary format, stored using the **UTF-8 encoding**. Each character encodes one byte ranging from 0-255. The format of `data` changes with Converter type.
 ### Converter.decode(string)
