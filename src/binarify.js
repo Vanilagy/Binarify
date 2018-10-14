@@ -1,5 +1,5 @@
 /*
-    Binarify v2.4.0
+    Binarify v2.4.1
     @Vanilagy
 */
 
@@ -59,7 +59,7 @@
         input.
     */
     var Binarify = {
-        version: "2.4.0", // Can be used to compare client and server
+        version: "2.4.1", // Can be used to compare client and server
         
         Boolean: function() {
             this.set = function() {return this};
@@ -448,7 +448,7 @@
             this.decode = function(binStr, isInternalCall) {
                 if (isInternalCall !== true) index = 0;
                 
-                var key = keys[formatter.from[keyLengthByteType](binStr.slice(index, keyLengthByteLength))];
+                var key = keys[formatter.from[keyLengthByteType](binStr.substr(index, keyLengthByteLength))];
                 index += keyLengthByteLength;
                 
                 return {key: key, value: (pairs[key] === null) ? null : pairs[key].decode(binStr, true)};
