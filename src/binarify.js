@@ -540,7 +540,7 @@
                     var attribute = attributes[i];
                     if (obj[attribute] !== undefined) {
                         if (obj[attribute] === true) {
-                            currentByte += Math.pow(2, i % 8);
+                            currentByte += 1 << i % 8;
                         }
                     } else {
                         throw new Error("Attribute '" + attribute + "' is defined in the BitField, but wasn't passed to it in its encode method");
@@ -566,7 +566,7 @@
                         currentCharCode = binStr.charCodeAt(index + currentIndex);
                     }
                     
-                    obj[attributes[i]] = (currentCharCode & Math.pow(2, i % 8)) > 0;
+                    obj[attributes[i]] = (currentCharCode & (1 << i % 8)) > 0;
                 }
                 
                 index += Math.floor(attributes.length / 8);
