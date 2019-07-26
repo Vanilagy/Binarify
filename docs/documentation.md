@@ -61,7 +61,7 @@ Used for numbers of the specified type.<br>
 new Binarify.Number([type])
 ```
 *Arguments:*<br>
-- `type` - *Optional.* The type which the number will be encoded in. Accepted values are **"u8"**, **"u16"**, **"u24"**, **"u32"**, **"s8"**, **"s16"**, **"s24"**, **"s32"**, **"f32"** and **"f64"**. Defaults to **"f64"** if not set.
+- `type` - *Optional.* The type which the number will be encoded in. Accepted values are **"u8"**, **"u16"**, **"u24"**, **"u32"**, **"s8"**, **"s16"**, **"s24"**, **"s32"**, **"f32"** and **"f64"**. Binarify uses [little-endian](https://en.wikipedia.org/wiki/Endianness) byte representations of numbers. Defaults to **"f64"** if not set.
 ### Encoding syntax:
 ```javascript
 Binarify.encode(converter, number)

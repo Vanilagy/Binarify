@@ -1,5 +1,5 @@
 /*
-    Binarify v3.0.0
+    Binarify v3.0.1
     @Vanilagy
 */
 
@@ -167,7 +167,7 @@
     */
 
     var Binarify = {
-        version: "3.0.0", // Can be used to compare client and server
+        version: "3.0.1", // Can be used to compare client and server
 
         encode: function(converter, data) {
             var buffer = [];
