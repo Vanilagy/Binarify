@@ -349,7 +349,7 @@ var clientDataBlueprint = new Binarify.Object({
     firstName: new Binarify.String(),
     lastName: new Binarify.String(),
     email: new Binarify.String(),
-    dateOfBirth: new Binarify.NullWrapper(new Binarify.Number("uInt")), // This...
+    dateOfBirth: new Binarify.NullWrapper(new Binarify.Number("u32")), // This...
     phoneNumber: new Binarify.NullWrapper(new Binarify.String()) // ...and this field might be 'null'
 });
 
