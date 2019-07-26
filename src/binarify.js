@@ -1,39 +1,33 @@
 /*
-    Binarify v2.4.1
+    Binarify v3.0.0
     @Vanilagy
 */
 
 (function() {
+    "use strict";
+
+    // Well, technically, max values + 1. I just wanna keep the name short.
     var MAX_VALUES = {
-        byte: 256,
-        short: 65536,
-        tribyte: 16777216, // Rarely used, but turns out to be a good sweetspot for some cases
-        int: 4294967296,
-        float: 16777217,
-        double: Number.MAX_SAFE_INTEGER
+        u8:  256,
+        u16: 65536,
+        u24: 16777216,
+        u32: 4294967296,
+        s8:  256 / 2,
+        s16: 65536 / 2,
+        s24: 16777216 / 2,
+        s32: 4294967296 / 2,
+        f32: 16777217,
+        f64: Number.MAX_SAFE_INTEGER
     };
-    var ELEMENTAL_NUMBER_TYPES = ["byte", "short", "tribyte", "int", "float", "double"];
-    var EXTENDED_NUMBER_TYPES = ["uByte", "sByte", "uShort", "sShort", "uTribyte", "sTribyte", "uInt", "sInt", "float", "double"];
-    
-    function getLengthByType(type) {
-        switch (type) {
-            case "byte": return 1; break;
-            case "short": return 2; break;
-            case "tribyte": return 3; break;
-            case "int": return 4; break;
-            case "float": return 4; break;
-            case "double": return 8; break;
-            default: throw new Error("Incorrect number type '" + type + "'");
-        }
-    }
+    var NUMBER_TYPES = ["u8", "u16", "u24", "u32", "s8", "s16", "s24", "s32", "f32", "f64"];
     
     function getTypeByLength(length) {
         switch (length) {
-            case 1: return "byte"; break;
-            case 2: return "short"; break;
-            case 3: return "tribyte"; break;
-            case 4: return "int"; break;
-            default: return "double"; // Double can store the highest integer out of all available datatypes
+            case 1: return "u8";
+            case 2: return "u16";
+            case 3: return "u24";
+            case 4: return "u32";
+            default: return "f64"; // Double can store the highest integer out of all available datatypes
         }
     }
 
@@ -46,59 +40,185 @@
     function isHexString(str) {
         return hexRegExp.test(str);
     }
+
+    function appendBytesToArray(arr, uint8Array) {
+        for (var i = 0; i < uint8Array.length; i++) {
+            arr.push(uint8Array[i]);
+        }
+    }
+
+    var textEncoder, textDecoder;
+
+    // The if (true ...) is based on the observation that the following polyfill is actually 50% FASTER than the native implementation. Strange.
+    if (true || typeof TextEncoder === "undefined") {
+        // Load them from this awesome polyfill (slightly modified) from https://github.com/anonyco/FastestSmallestTextEncoderDecoder:
+
+        (function(window){
+            "use strict";
+            var log = Math.log;
+            var LN2 = Math.LN2;
+            var clz32 = Math.clz32 || function(x) {return 31 - log(x >>> 0) / LN2 | 0};
+            var fromCharCode = String.fromCharCode;
+            var Object_prototype_toString = ({}).toString;
+            var NativeUint8Array = window.Uint8Array;
+            var patchedU8Array = NativeUint8Array || Array;
+            var ArrayBufferString = Object_prototype_toString.call((window.ArrayBuffer || patchedU8Array).prototype);
+            function decoderReplacer(encoded){
+              var codePoint = encoded.charCodeAt(0) << 24;
+              var leadingOnes = clz32(~codePoint)|0;
+              var endPos = 0, stringLen = encoded.length|0;
+              var result = "";
+              if (leadingOnes < 5 && stringLen >= leadingOnes) {
+                codePoint = (codePoint<<leadingOnes)>>>(24+leadingOnes);
+                for (endPos = 1; endPos < leadingOnes; endPos=endPos+1|0)
+                  codePoint = (codePoint<<6) | (encoded.charCodeAt(endPos)&0x3f/*0b00111111*/);
+                if (codePoint <= 0xFFFF) { // BMP code point
+                  result += fromCharCode(codePoint);
+                } else if (codePoint <= 0x10FFFF) {
+                  // https://mathiasbynens.be/notes/javascript-encoding#surrogate-formulae
+                  codePoint = codePoint - 0x10000|0;
+                  result += fromCharCode(
+                    (codePoint >> 10) + 0xD800|0,  // highSurrogate
+                    (codePoint & 0x3ff) + 0xDC00|0 // lowSurrogate
+                  );
+                } else endPos = 0; // to fill it in with INVALIDs
+              }
+              for (; endPos < stringLen; endPos=endPos+1|0) result += "\ufffd"; // replacement character
+              return result;
+            }
+            function TextDecoder(){};
+            TextDecoder.prototype.decode = function(inputArrayOrBuffer){
+              var buffer = (inputArrayOrBuffer && inputArrayOrBuffer.buffer) || inputArrayOrBuffer;
+              if (Object_prototype_toString.call(buffer) !== ArrayBufferString)
+                throw Error("Failed to execute 'decode' on 'TextDecoder': The provided value is not of type '(ArrayBuffer or ArrayBufferView)'");
+              var inputAs8 = NativeUint8Array ? new patchedU8Array(buffer) : buffer;
+              var resultingString = "";
+              for (var index=0,len=inputAs8.length|0; index<len; index=index+32768|0)
+                resultingString += fromCharCode.apply(0, inputAs8[NativeUint8Array ? "slice" : "subarray"](index,index+32768|0));
+          
+              return resultingString.replace(/[\xc0-\xff][\x80-\xbf]*/g, decoderReplacer);
+            }
+            textDecoder = TextDecoder;
+            //////////////////////////////////////////////////////////////////////////////////////
+            function encoderReplacer(nonAsciiChars){
+              // make the UTF string into a binary UTF-8 encoded string
+              var point = nonAsciiChars.charCodeAt(0)|0;
+              if (point >= 0xD800 && point <= 0xDBFF) {
+                var nextcode = nonAsciiChars.charCodeAt(1)|0;
+                if (nextcode !== nextcode) // NaN because string is 1 code point long
+                  return fromCharCode(0xef/*11101111*/, 0xbf/*10111111*/, 0xbd/*10111101*/);
+                // https://mathiasbynens.be/notes/javascript-encoding#surrogate-formulae
+                if (nextcode >= 0xDC00 && nextcode <= 0xDFFF) {
+                  point = ((point - 0xD800)<<10) + nextcode - 0xDC00 + 0x10000|0;
+                  if (point > 0xffff)
+                    return fromCharCode(
+                      (0x1e/*0b11110*/<<3) | (point>>>18),
+                      (0x2/*0b10*/<<6) | ((point>>>12)&0x3f/*0b00111111*/),
+                      (0x2/*0b10*/<<6) | ((point>>>6)&0x3f/*0b00111111*/),
+                      (0x2/*0b10*/<<6) | (point&0x3f/*0b00111111*/)
+                    );
+                } else return fromCharCode(0xef, 0xbf, 0xbd);
+              }
+              if (point <= 0x007f) return nonAsciiChars;
+              else if (point <= 0x07ff) {
+                return fromCharCode((0x6<<5)|(point>>>6), (0x2<<6)|(point&0x3f));
+              } else return fromCharCode(
+                (0xe/*0b1110*/<<4) | (point>>>12),
+                (0x2/*0b10*/<<6) | ((point>>>6)&0x3f/*0b00111111*/),
+                (0x2/*0b10*/<<6) | (point&0x3f/*0b00111111*/)
+              );
+            }
+            function TextEncoder(){};
+            TextEncoder.prototype.encode = function(inputString){
+              // 0xc0 => 0b11000000; 0xff => 0b11111111; 0xc0-0xff => 0b11xxxxxx
+              // 0x80 => 0b10000000; 0xbf => 0b10111111; 0x80-0xbf => 0b10xxxxxx
+              var encodedString = inputString === void 0 ?  "" : ("" + inputString).replace(/[\x80-\uD7ff\uDC00-\uFFFF]|[\uD800-\uDBFF][\uDC00-\uDFFF]?/g, encoderReplacer);
+              var len=encodedString.length|0, result = new patchedU8Array(len);
+              for (var i=0; i<len; i=i+1|0)
+                result[i] = encodedString.charCodeAt(i);
+              return result;
+            };
+            textEncoder = TextEncoder;
+        })(typeof global == "" + void 0 ? typeof self == "" + void 0 ? this : self : global);
+    } else {
+        textEncoder = TextEncoder;
+        textDecoder = TextDecoder;
+    }
+
+    var textEncoderInstance = new textEncoder();
+    function stringToUtf8Bytes(string) {
+        return textEncoderInstance.encode(string);
+    }
+
+    var textDecoderInstance = new textDecoder();
+    function utf8BytesToString(bytes) {
+        return textDecoderInstance.decode(bytes);
+    }
     
-    // Current starting index used by the decoder; is set to zero any decode() method is called from the outside.
-    var index = 0;
+    // Data stored about the current decoding process.
+    var index = 0,
+        decodeBytes = null,
+        decodeView = null;
     
     /*
-        Main object, containing all different data and structure types, each with their encoding and decoding methods.
+        Main object, containing all converters, each with their encoding and decoding methods (used internally). It also contains the encode and decode methods meant for external use.
         
-        A data or structure object, when instanciated, will turn whatever input is piped into its encode method into
-        a very compact binary representation. This only works if the structure and properties of the input match those
-        that the method expects. Plugging the output of the encode method into the decode method will recreate the original
-        input.
+        A converter will turn whatever input is piped into its encode method into a very compact binary representation and write it to a buffer. This only works if the structure and properties of the input match those that the method expects. Calling decode will decode the binary data in decodeBytes and return it. If everything went well, the decoded data will be exactly equal to the data originally input into encode.
     */
+
     var Binarify = {
-        version: "2.4.1", // Can be used to compare client and server
+        version: "3.0.0", // Can be used to compare client and server
+
+        encode: function(converter, data) {
+            var buffer = [];
+
+            converter.encode(data, buffer);
+
+            // Convert to ArrayBuffer (or Buffer if Node)
+            if (typeof Buffer !== "undefined") return Buffer.from(buffer);
+            return new Uint8Array(buffer).buffer;
+        },
+
+        decode: function(converter, buffer) {
+            if (typeof Buffer !== "undefined" && buffer instanceof Buffer) {
+                buffer = buffer.buffer.slice(buffer.byteOffset, buffer.byteOffset + buffer.byteLength); // Since Node Buffers are also instances of Uint8Array, Buffer.buffer is an ArrayBuffer. We have to do the slicing because of: https://stackoverflow.com/a/31394257/7036957
+            }
+
+            index = 0;
+            decodeBytes = new Uint8Array(buffer);
+            decodeView = new DataView(buffer);
+
+            return converter.decode();
+        },
         
         Boolean: function() {
             this.set = function() {return this};
             
-            this.encode = function(boolean) {
-                return boolean ? "\u0001" : "\u0000";
+            this.encode = function(boolean, buffer) {
+                buffer.push(boolean? 1 : 0);
             };
             
-            this.decode = function(binStr, isInternalCall) {
-                if (isInternalCall !== true) index = 0;
-                
-                return binStr.charCodeAt(index++) === 1;
+            this.decode = function() {
+                return decodeBytes[index++] === 1;
             };
         },
         
         Number: function(type) {
-            var size;
-            
             this.set = function(typeNew) {
                 // Defaults to JavaScript's default "double"
-                type = typeNew || "double";
-                if (EXTENDED_NUMBER_TYPES.indexOf(type) === -1) throw new Error("Incorrect Number type '" + type + "'");
-                size = getLengthByType(((type !== "double" && type !== "float") ? type.slice(1) : type).toLowerCase());
+                type = typeNew || "f64";
+                if (NUMBER_TYPES.indexOf(type) === -1) throw new Error("Incorrect Number type '" + type + "'.");
                 
                 return this;
             };
             this.set(type);
 
-            this.encode = function(number) {
-                return formatter.to[type](number);
+            this.encode = function(number, buffer) {
+                numberHelper.write[type](number, buffer);
             };
             
-            this.decode = function(binStr, isInternalCall) {
-                if (isInternalCall !== true) index = 0;
-                
-                var output = formatter.from[type](binStr.substr(index, size));
-                index += size;
-                
-                return output;
+            this.decode = function() {
+                return numberHelper.read[type]();
             };
         },
         
@@ -113,133 +233,165 @@
 
                 if (!hasExactLength) {
                     // Defaults to a null-terminated string
-                    size = maxSize || "nullTer";
-                    if (size !== "nullTer" && ELEMENTAL_NUMBER_TYPES.indexOf(size) === -1) throw new Error("Incorrect String size number type '" + size + "'");
+                    size = maxSize || "nullTerminated";
+                    if (size !== "nullTerminated" && NUMBER_TYPES.indexOf(size) === -1) throw new Error("Incorrect String size number type '" + size + "'.");
                 } else {
                     maxSize = Math.floor(maxSize);
-                    if (maxSize < 0) throw new Error("String cannot have a fixed length shorter than 0");
+                    if (maxSize < 0) throw new Error("String cannot have a fixed length shorter than 0.");
                     length = maxSize;
                 }
                 
                 return this;
             };
             this.set(maxSize);
+
+            function findUtf8ByteLength(bytes, stringLength) {
+                var index = 0;
+
+                // Hop over the utf8
+                for (var i = 0; i < stringLength; i++) {
+                    var byte = bytes[index];
+
+                    if ((byte & 0b11110000) === 0b11110000) { index += 4; continue; }
+                    if ((byte & 0b11100000) === 0b11100000) { index += 3; continue; }
+                    if ((byte & 0b11000000) === 0b11000000) { index += 2; continue; }
+                    index += 1;
+                }
+
+                return index;
+            }
             
-            this.encode = function(string) {
+            this.encode = function(string, buffer) {
                 if (!hasExactLength) {
-                    if (size === "nullTer") {
+                    if (size === "nullTerminated") {
                         if (string.indexOf("\u0000") !== -1) string.replace(/\u0000/g, " "); // All NULL-characters will be replaced with a space
-                        // Append null-terminator to the end
-                        return string + "\u0000";
+
+                        var bytes = stringToUtf8Bytes(string);
+                        appendBytesToArray(buffer, bytes);
+                        buffer.push(0);
                     } else {
                         // Prepend the string's length
                         string = string.slice(0, MAX_VALUES[size]-1);
-                        return formatter.to[size](string.length) + string;
+
+                        numberHelper.write[size](string.length, buffer);
+                        buffer.push(...stringToUtf8Bytes(string));
                     }
                 } else {
                     if (string.length === length) {
-                        return string;
+                        buffer.push(...stringToUtf8Bytes(string));
                     } else {
-                        throw new Error("Passed string isn't of specified length " + length);
+                        throw new Error("Passed string isn't of specified length " + length + ".");
                     }
                 }
             };
             
-            this.decode = function(binStr, isInternalCall) {
-                if (isInternalCall !== true) index = 0;
-                
+            this.decode = function() {
                 var output;
 
                 if (!hasExactLength) {
-                    if (size === "nullTer") {
-                        output = binStr.slice(index, binStr.indexOf("\u0000", index));
-                        index += output.length + 1;
+                    if (size === "nullTerminated") {
+                        var nullIndex = index;
+                        for (nullIndex; nullIndex < decodeBytes.length; nullIndex++) {
+                            if (decodeBytes[nullIndex] === 0) break;
+                        }
+
+                        var part = decodeBytes.slice(index, nullIndex);
+                        var string = utf8BytesToString(part);
+
+                        index += (nullIndex - index) + 1;
+                        output = string;
                     } else {
-                        var typeSize = getLengthByType(size);
-                        var len = formatter.from[size](binStr.substr(index, typeSize));
-                        output = binStr.substr(index + typeSize, len);
-                        index += typeSize + len;
+                        var len = numberHelper.read[size](decodeBytes);
+                        var endIndex = index + findUtf8ByteLength(decodeBytes, len);
+                        var part = decodeBytes.slice(index, endIndex);
+                        var string = utf8BytesToString(part);
+
+                        index += (endIndex - index);
+                        output = string;
                     }
                 } else {
-                    output = binStr.substr(index, length);
-                    index += length;
+                    var endIndex = index + findUtf8ByteLength(decodeBytes, length);
+                    var part = decodeBytes.slice(index, endIndex);
+                    var string = utf8BytesToString(part);
+
+                    index += (endIndex - index);
+                    output = string;
                 }
                 
                 return output;
             };
         },
         
-        HexString: function(length) {
+        HexString: function(maxSize) {
             var hasExactLength;
             
-            this.set = function(lengthNew) {
-                length = lengthNew;
-                
-                hasExactLength = typeof length === "number";
-                
-                if (hasExactLength) {
-                    length = Math.floor(length);
-                    if (length < 0) throw new Error("HexString cannot have a fixed length shorter than 0");
+            this.set = function(maxSizeNew) {
+                maxSize = maxSizeNew;
+
+                if (typeof maxSize === "string") {
+                    if (NUMBER_TYPES.indexOf(maxSize) === -1) throw new Error("Incorrect HexString size number type '" + maxSize + "'.");
+
+                    hasExactLength = false;
+                } else if (typeof maxSize === "number") {
+                    maxSize = Math.floor(maxSize);
+                    if (maxSize < 0) throw new Error("HexString cannot have a fixed length shorter than 0.");
+
+                    hasExactLength = true;
+                } else {
+                    throw new Error("Incorrect HexString size given.");
                 }
                 
                 return this;
             };
-            this.set(length);
+            this.set(maxSize);
 
-            this.encode = function(string) {
-                if (!isHexString(string)) throw new Error("Passed string is not a HexString!");
-                if (hasExactLength && string.length !== length) throw new Error("Passed string isn't of specified length " + length);
+            this.encode = function(hexString, buffer) {
+                if (hexString.length > 0 && !isHexString(hexString)) throw new Error("Passed string is not a hex string.");
 
-                var binStr = "";
-
-                // Makes sure the decoder knows if the last byte is used fully or only half of it
-                if (!hasExactLength) binStr += String.fromCharCode((string.length % 2 === 0) ? 1 : 0);
-
-                for (var i = 0; i < string.length; i += 2) {
-                    binStr += String.fromCharCode(parseInt(string.substr(i, (string.length - i >= 2) ? 2 : 1), 16));
+                if (hasExactLength) {
+                    if (hexString.length !== maxSize) throw new Error("Passed string isn't of specified length " + maxSize + ".");
+                } else {
+                    numberHelper.write[maxSize](hexString.length, buffer);
                 }
 
-                if (!hasExactLength) binStr += "\u0100"; // (256) Cheating a little here
+                for (var i = 0; i < hexString.length; i += 2) {
+                    var nibble1 = parseInt(hexString.charAt(i), 16);
+                    var nibble2 = parseInt(hexString.charAt(i + 1) || 0, 16);
 
-                return binStr;
+                    buffer.push(nibble1 + 0x10 * nibble2);
+                }
             };
 
-            this.decode = function(binStr, isInternalCall) {
-                if (isInternalCall !== true) index = 0;
+            this.decode = function() {
+                var length;
 
-                var data;
-                if (!hasExactLength) {
-                    var lastByteFull = (binStr.charCodeAt(index) === 1) ? true : false;
-                    var endIndex = binStr.indexOf("\u0100", index);
-                    data = binStr.slice(index+1, endIndex);
+                if (hasExactLength) {
+                    length = maxSize;
                 } else {
-                    data = binStr.substr(index, Math.ceil(length / 2));
+                    length = numberHelper.read[maxSize](decodeBytes);
                 }
 
-                var hexString = "";
-                for (var i = 0; i < data.length; i++) {
-                    if (i !== data.length - 1) {
-                        hexString += ("00" + data.charCodeAt(i).toString(16)).slice(-2);
-                    } else {
-                        var lastByteDifferent = false;
-                        if (!hasExactLength && !lastByteFull) lastByteDifferent = true;
-                        if (hasExactLength && length % 2 === 1) lastByteDifferent = true;
+                var hexString = "", byteLength = Math.ceil(length / 2);
 
-                        if (!lastByteDifferent) {
-                            hexString += ("00" + data.charCodeAt(i).toString(16)).slice(-2);
-                        } else {
-                            hexString += data.charCodeAt(i).toString(16);
-                        }
-                    }
+                for (var i = 0; i < byteLength; i ++) {
+                    var byte = decodeBytes[index + i];
+
+                    var nibble1 = byte & 0x0F;
+                    var nibble2 = byte >> 4;
+
+                    hexString += nibble1.toString(16);
+                    if (i < byteLength-1) hexString += nibble2.toString(16);
+                    else if (length % 2 === 0) hexString += nibble2.toString(16);
                 }
 
-                index += data.length + ((hasExactLength) ? 0 : 2);
+                index += byteLength;
+
                 return hexString;
             };
         },
         
         Object: function(blueprint, loose /* If loose is set, keys in the input can be omitted */) {
-            var keys, keyLengthByteLength, keyLengthByteType;
+            var keys, keyLengthByteType;
             
             this.set = function(blueprintNew, looseNew) {
                 blueprint = blueprintNew;
@@ -251,168 +403,162 @@
                 keys.sort(); // This is done to guarantee key order across all JavaScript implementations
 
                 if (loose) {
-                    keyLengthByteLength = Math.ceil(Math.log2(keys.length) / 8) || 1;            
+                    var keyLengthByteLength = Math.ceil(Math.log2(keys.length) / 8) || 1;            
                     keyLengthByteType = getTypeByLength(keyLengthByteLength);
-                    keyLengthByteLength = getLengthByType(keyLengthByteType); // Set to 8 if type is double
                 }
                 
                 return this;
             };
             this.set(blueprint, loose);
             
-            this.encode = function(obj) {
-                if (blueprint === undefined) throw new Error("Can't encode, no blueprint defined");
-                
-                var binStr = "";
+            this.encode = function(obj, buffer) {
+                if (blueprint === undefined) throw new Error("Can't encode, no blueprint defined.");
                 
                 if (!loose) {
                     for (var i = 0; i < keys.length; i++) {
                         var key = keys[i];
-                        if (obj[key] === undefined) throw new Error("Key '" + key + "' is defined in the blueprint, but not in the input object");
-                        binStr += blueprint[key].encode(obj[key]);
+                        if (obj[key] === undefined) throw new Error("Key '" + key + "' is defined in the blueprint, but not in the input object.");
+
+                        blueprint[key].encode(obj[key], buffer);
                     }
                 } else {
                     var attributeCount = 0;
-                    
-                    for (var key in obj) {
-                        if (blueprint[key] !== undefined) {
-                            binStr += formatter.to[keyLengthByteType](keys.indexOf(key)) + blueprint[key].encode(obj[key]);
-                            attributeCount++;
-                        }
+                    var indexes = {};
+
+                    for (var i = 0; i < keys.length; i++) {
+                        var key = keys[i];
+                        if (obj[key] === undefined) continue;
+
+                        indexes[key] = i;
+                        attributeCount++;
                     }
-                    
-                    binStr = formatter.to[keyLengthByteType](attributeCount) + binStr;
+
+                    numberHelper.write[keyLengthByteType](attributeCount, buffer);
+
+                    for (var key in indexes) {
+                        numberHelper.write[keyLengthByteType](indexes[key], buffer);
+
+                        blueprint[key].encode(obj[key], buffer);
+                    }
                 }
-                
-                return binStr;
             };
             
-            this.decode = function(binStr, isInternalCall) {
-                if (isInternalCall !== true) index = 0;
-                
+            this.decode = function() {
                 var obj = {};
             
                 if (!loose) {
                     for (var i = 0; i < keys.length; i++) {
                         var key = keys[i];
-                        obj[key] = blueprint[key].decode(binStr, true);
+                        obj[key] = blueprint[key].decode();
                     }
                 } else {
-                    var numberOfKeys = formatter.from[keyLengthByteType](binStr.substr(index, keyLengthByteLength));
-                    index += keyLengthByteLength;
+                    var numberOfKeys = numberHelper.read[keyLengthByteType](decodeBytes);
 
                     for (var i = 0; i < numberOfKeys; i++) {
-                        var key = keys[formatter.from[keyLengthByteType](binStr.substr(index, keyLengthByteLength))];
-                        index += keyLengthByteLength;
+                        var key = keys[numberHelper.read[keyLengthByteType](decodeBytes)];
 
-                        obj[key] = blueprint[key].decode(binStr, true);
+                        obj[key] = blueprint[key].decode();
                     }
                 }
                 
                 return obj;
             };
         },
-        
-        Array: function(pattern, repeatSize) {
-            var hasExactLength, repeatSizeLength;
-            
-            this.set = function(patternNew, repeatSizeNew) {
-                pattern = patternNew;
-                repeatSize = repeatSizeNew;
+
+        Array: function(element, maxSize) {
+            var hasExactLength;
+
+            this.set = function(elementNew, maxSizeNew) {
+                element = elementNew;
+                maxSize = maxSizeNew;
                 
-                if (pattern === undefined) return;
+                if (element === undefined) return;
 
-                /*
-                    If repeatSize is not given, the array will be looked at as more of an "unnamed object", simply specifying
-                    a pattern of set datatypes and length.
-                */
-                if (repeatSize !== undefined) {
-                    // Figure out if repeatSize is a number or a number size
-                    hasExactLength = typeof repeatSize === "number";
+                if (typeof maxSize === "string") {
+                    if (NUMBER_TYPES.indexOf(maxSize) === -1) throw new Error("Incorrect Array size number type '" + maxSize + "'.");
 
-                    if (!hasExactLength) {
-                        if (ELEMENTAL_NUMBER_TYPES.indexOf(repeatSize) > -1) {
-                            repeatSizeLength = getLengthByType(repeatSize);
-                        } else {
-                            throw new Error("Incorrect Array size number type '" + repeatSize + "'");
-                        }
-                    } else {
-                        repeatSize = Math.floor(repeatSize);
-                        if (repeatSize < 0) throw new Error("Array cannot have a fixed length shorter than 0");
-                    }
+                    hasExactLength = false;
+                } else if (typeof maxSize === "number") {
+                    maxSize = Math.floor(maxSize);
+                    if (maxSize < 0) throw new Error("Array cannot have a fixed length shorter than 0.");
+
+                    hasExactLength = true;
+                } else {
+                    throw new Error("Incorrect Array size given.");
                 }
                 
                 return this;
             };
-            this.set(pattern, repeatSize);
-            
-            this.encode = function(arr) {
-                if (pattern === undefined) throw new Error("Can't encode, no pattern defined");
-                
-                if (pattern.length && arr.length % pattern.length !== 0) throw new Error("Array (length " + arr.length + ") contains at least one incomplete pattern");
-                var binStr = "";
-                
-                if (repeatSize !== undefined) {
-                    if (!hasExactLength) {
-                        arr = arr.slice(0, (MAX_VALUES[repeatSize]-1) * pattern.length); // Trim the array so it fits into the specified repeatSize
-                    } else {
-                        if (arr.length !== repeatSize * pattern.length) throw new Error("Array pattern in the input isn't repeated exactly " + repeatSize + " times, as was specified");
-                    }
-                    
-                    var repeats = Math.ceil(arr.length / pattern.length);
-                    if (repeats !== repeats /* is NaN */) {
-                        repeats = 0;
-                    }
-                
-                    for (var i = 0; i < repeats; i++) {
-                        for (var j = 0; j < pattern.length; j++) {
-                            binStr += pattern[j].encode(arr[i * pattern.length + j]);
-                        }
-                    }
-                    
-                    if (!hasExactLength) binStr = formatter.to[repeatSize](repeats) + binStr; // Prepend pattern repetition count
+            this.set(element, maxSize);
+
+            this.encode = function(arr, buffer) {
+                if (element === undefined) throw new Error("Can't encode, element not specified.");
+
+                var arrLength = arr.length;
+
+                if (hasExactLength) {
+                    if (arrLength !== maxSize) throw new Error("Passed array isn't of specified length " + maxSize + ".");
                 } else {
-                    if (arr.length < pattern.length) throw new Error("Input array (length " + arr.length + ") has to be at least as long as the pattern array (length " + pattern.length + ")");
-                    
-                    for (var i = 0; i < pattern.length; i++) {
-                        binStr += pattern[i].encode(arr[i]);
-                    }
+                    if (arrLength > MAX_VALUES[maxSize]-1) arr = arr.slice(0, MAX_VALUES[maxSize]-1);
+                    arrLength = arr.length;
+
+                    // Prepend the array's length
+                    numberHelper.write[maxSize](arrLength, buffer);
                 }
-                
-                return binStr;
+
+                for (var i = 0; i < arrLength; i++) {
+                    element.encode(arr[i], buffer);
+                }
             };
-            
-            this.decode = function(binStr, isInternalCall) {
-                if (isInternalCall !== true) index = 0;
-                
-                var arr = [];
-                
-                if (repeatSize !== undefined) {
-                    var repeats;
-                    if (!hasExactLength) {
-                        repeats = formatter.from[repeatSize](binStr.substr(index, repeatSizeLength));
-                        index += repeatSizeLength;
-                    } else {
-                        repeats = repeatSize;
-                    }
-                    
-                    for (var i = 0; i < repeats; i++) {
-                        for (var j = 0; j < pattern.length; j++) {
-                            arr[i * pattern.length + j] = pattern[j].decode(binStr, true);
-                        }
-                    }
+
+            this.decode = function() {
+                var arrLength, arr = [];
+
+                if (hasExactLength) {
+                    arrLength = maxSize;
                 } else {
-                    for (var i = 0; i < pattern.length; i++) {
-                        arr[i] = pattern[i].decode(binStr, true);
-                    }
+                    arrLength = numberHelper.read[maxSize](decodeBytes);
                 }
-                
+
+                for (var i = 0; i < arrLength; i++) {
+                    arr.push(element.decode());
+                }
+
                 return arr;
+            };
+        },
+
+        Tuple: function(elements) {
+            this.set = function(elementsNew) {
+                if (elementsNew === undefined) return;
+
+                elements = elementsNew;
+            };
+            this.set(elements);
+
+            this.encode = function(values, buffer) {
+                if (elements === undefined) throw new Error("Can't encode, no tuple specified.");
+
+                if (values.length !== elements.length) throw new Error("Given tuple values don't match the tuple's length of " + elements.length + ".");
+
+                for (var i = 0; i < elements.length; i++) {
+                    elements[i].encode(values[i], buffer);
+                }
+            };
+
+            this.decode = function() {
+                var tuple = [];
+
+                for (var i = 0; i < elements.length; i++) {
+                    tuple.push(elements[i].decode());
+                }
+
+                return tuple;
             };
         },
                 
         Dynamic: function(pairs) {
-            var keys, keyLengthByteLength, keyLengthByteType;
+            var keys, keyLengthByteType;
             
             this.set = function(pairsNew) {
                 pairs = pairsNew;
@@ -421,99 +567,92 @@
             
                 keys = Object.keys(pairs);
                 keys.sort(); // Same reasoning as in Binarify.Object
-                keyLengthByteLength = Math.ceil(Math.log2(keys.length) / 8) || 1;            
-                keyLengthByteType = getTypeByLength(keyLengthByteLength);
-                keyLengthByteLength = getLengthByType(keyLengthByteType); // Set to 8 if type is double
+
+                var keyLengthByteLength = Math.ceil(Math.log2(keys.length) / 8) || 1;            
+                keyLengthByteType = getTypeByLength(keyLengthByteLength); 
                 
                 return this;
             };
             this.set(pairs);
             
-            this.encode = function(arg1, arg2) {
-                if (pairs === undefined) throw new Error("Can't encode, no pairs object defined");
+            this.encode = function(pair, buffer) {
+                if (pairs === undefined) throw new Error("Can't encode, no pairs object defined.");
                 
-                var key, value;
-                if (arg2 !== undefined) {
-                    key = arg1;
-                    value = arg2;
-                } else {
-                    key = arg1.key;
-                    value = arg1.value;
-                }
+                var key = pair.key, value = pair.value;
 
-                if (pairs[key] === undefined) throw new Error("Key '" + key + "' is not defined");
-                return formatter.to[keyLengthByteType](keys.indexOf(key)) + ((pairs[key] === null) ? "" : pairs[key].encode(value));
+                if (pairs[key] === undefined) throw new Error("Key '" + key + "' is not defined.");
+
+                numberHelper.write[keyLengthByteType](keys.indexOf(key), buffer);
+                if (pairs[key] !== null) {
+                    pairs[key].encode(value, buffer);
+                }
             };
             
-            this.decode = function(binStr, isInternalCall) {
-                if (isInternalCall !== true) index = 0;
+            this.decode = function() {
+                var key = keys[numberHelper.read[keyLengthByteType](decodeBytes)];
                 
-                var key = keys[formatter.from[keyLengthByteType](binStr.substr(index, keyLengthByteLength))];
-                index += keyLengthByteLength;
-                
-                return {key: key, value: (pairs[key] === null) ? null : pairs[key].decode(binStr, true)};
+                return {
+                    key: key,
+                    value: (pairs[key] === null)? null : pairs[key].decode()
+                };
             };
         },
         
-        SetElement: function(elements, noSerialization) {
-            var stringifiedElements, stringifiedElementsArr, keyLengthByteLength, keyLengthByteType;
+        Enumerator: function(enumeration, noSerialization) {
+            var stringifiedEnumerators, stringifiedEnumeratorsArr, keyLengthByteType;
             
-            this.set = function(elementsNew, noSerializationNew) {
-                elements = elementsNew;
+            this.set = function(enumerationNew, noSerializationNew) {
+                enumeration = enumerationNew;
                 noSerialization = noSerializationNew;
                 
-                if (elements === undefined) return;
+                if (enumeration === undefined) return;
 
                 if (!noSerialization) {
-                    stringifiedElements = {}, stringifiedElementsArr = [];
-                    for (var i = 0; i < elements.length; i++) {
+                    stringifiedEnumerators = {}, stringifiedEnumeratorsArr = [];
+                    for (var i = 0; i < enumeration.length; i++) {
                         try {
-                            var json = JSON.stringify(elements[i]);
-                            if (json === undefined) throw new Error("Element " + elements[i] + " serialized to 'undefined', thaz' bad.");
+                            var json = JSON.stringify(enumeration[i]);
+                            if (json === undefined) throw new Error("Enumerator " + enumeration[i] + " serialized to 'undefined', that's bad.");
 
-                            stringifiedElements[json] = i;
-                            stringifiedElementsArr.push(json);
+                            stringifiedEnumerators[json] = i;
+                            stringifiedEnumeratorsArr.push(json);
                         } catch(e) {
-                            throw new Error("Set element " + elements[i] + " couldn't be serialized", e);
+                            throw new Error("Enumerator " + enumeration[i] + " couldn't be serialized.", e);
                         }
                     }
                 }
 
-                keyLengthByteLength = Math.ceil(Math.log2(elements.length) / 8) || 1;            
+                var keyLengthByteLength = Math.ceil(Math.log2(enumeration.length) / 8) || 1;            
                 keyLengthByteType = getTypeByLength(keyLengthByteLength);
-                keyLengthByteLength = getLengthByType(keyLengthByteType); // Set to 8 if type is double
                 
                 return this;
             };
-            this.set(elements, noSerialization);
+            this.set(enumeration, noSerialization);
             
-            this.encode = function(element) {
-                if (elements === undefined) throw new Error("Can't encode, no element array defined");
+            this.encode = function(enumerator, buffer) {
+                if (enumeration === undefined) throw new Error("Can't encode, no enumeration defined.");
                 
                 var index;
                 if (noSerialization) {
-                    index = elements.indexOf(element);
+                    index = enumeration.indexOf(enumerator);
                 } else {
-                    index = stringifiedElements[JSON.stringify(element)];
+                    index = stringifiedEnumerators[JSON.stringify(enumerator)];
                 }
                 
-                if (!(index === -1 || index === undefined)) {
-                    return formatter.to[keyLengthByteType](index);
+                if (index !== -1 && index !== undefined) {
+                    numberHelper.write[keyLengthByteType](index, buffer);
                 } else {
-                    throw new Error("Element " + element + " not specified in Set");
+                    throw new Error("Enumerator " + enumerator + " not specified in enumeration.");
                 }
             };
             
-            this.decode = function(binStr, isInternalCall) {
-                if (isInternalCall !== true) index = 0;
-                
-                var elementIndex = formatter.from[keyLengthByteType](binStr.substr(index, keyLengthByteLength));
-                index += keyLengthByteLength;
+            this.decode = function() {
+                var enumeratorIndex = numberHelper.read[keyLengthByteType](decodeBytes);
                 
                 if (noSerialization) {
-                    return elements[elementIndex];
+                    return enumeration[enumeratorIndex];
                 } else {
-                    return JSON.parse(stringifiedElementsArr[elementIndex]);
+                    return JSON.parse(stringifiedEnumeratorsArr[enumeratorIndex]);
                 }
             };
         },
@@ -525,15 +664,13 @@
                 return this;
             };
             
-            this.encode = function(obj) {
-                if (attributes === undefined) throw new Error("Can't encode, no attribute array defined");
-                
-                var output = "";
+            this.encode = function(obj, buffer) {
+                if (attributes === undefined) throw new Error("Can't encode, no attribute array defined.");
                 
                 var currentByte = 0;
                 for (var i = 0; i < attributes.length; i++) {
                     if (i % 8 === 0 && i > 0) {
-                        output += String.fromCharCode(currentByte);
+                        buffer.push(currentByte);
                         currentByte = 0;
                     }
                     
@@ -543,30 +680,26 @@
                             currentByte += 1 << i % 8;
                         }
                     } else {
-                        throw new Error("Attribute '" + attribute + "' is defined in the BitField, but wasn't passed to it in its encode method");
+                        throw new Error("Attribute '" + attribute + "' is defined in the BitField, but no value was specified.");
                     }
                 }
                 if (attributes.length) {
-                    output += String.fromCharCode(currentByte);
+                    buffer.push(currentByte);
                 }
-                
-                return output;
             };
             
-            this.decode = function(binStr, isInternalCall) {
-                if (isInternalCall !== true) index = 0;
-                
+            this.decode = function() {
                 var obj = {};
-                var currentIndex = 0,
-                    currentCharCode = binStr.charCodeAt(index);
+                var internalIndex = 0,
+                    currentByte = decodeBytes[index];
                 
                 for (var i = 0; i < attributes.length; i++) {
                     if (i % 8 === 0 && i > 0) {
-                        currentIndex++;
-                        currentCharCode = binStr.charCodeAt(index + currentIndex);
+                        internalIndex++;
+                        currentByte = decodeBytes[index + internalIndex];
                     }
                     
-                    obj[attributes[i]] = (currentCharCode & (1 << i % 8)) > 0;
+                    obj[attributes[i]] = (currentByte & (1 << i % 8)) !== 0;
                 }
                 
                 index += Math.floor(attributes.length / 8);
@@ -582,157 +715,184 @@
                 return this;
             };
             
-            this.encode = function(data) {
+            this.encode = function(data, buffer) {
                 if (data === null || converter === undefined) {
-                    return "\u0000";
+                    buffer.push(0);
                 } else {
-                    return "\u0001" + converter.encode(data);
+                    buffer.push(1);
+                    converter.encode(data, buffer);
                 }
             };
 
-            this.decode = function(binStr, isInternalCall) {
-                if (isInternalCall !== true) index = 0;
-
-                var isNull = binStr.charCodeAt(index++) === 0;
+            this.decode = function() {
+                var isNull = decodeBytes[index++] === 0;
 
                 if (isNull) {
                     return null;
                 } else {
-                    return converter.decode(binStr, true);
+                    return converter.decode();
                 }
             };
         }
     };
-    
-    // Buffer setup to allow for byte-reading of floating-point numbers following the IEEE 754 standard
-    var floatBuffer = new ArrayBuffer(8);
-    var floatByteView = new Uint8Array(floatBuffer),
-        floatView = new Float32Array(floatBuffer),
-        doubleView = new Float64Array(floatBuffer);
+
+    var numberBuffer = new ArrayBuffer(8);
+    var numberBufferBytes = new Uint8Array(numberBuffer);
+    var numberBufferView = new DataView(numberBuffer);
     
     // Helper object, used to convert from and to different number types
-    var formatter = {
-        to: {
-            uByte: function(number) {
-                number = adjustedMod(Math.round(number), MAX_VALUES.byte);
+    var numberHelper = {
+        write: {
+            u8: function(number, buffer) {
+                numberBufferView.setUint8(0, number, true);
 
-                return String.fromCharCode(number);
+                buffer.push(numberBufferBytes[0]);
             },
-            
-            uShort: function(number) {
-                number = adjustedMod(Math.round(number), MAX_VALUES.short);
 
-                return String.fromCharCode(Math.floor(number / MAX_VALUES.byte)) + String.fromCharCode(number % MAX_VALUES.byte);
-            },
-            
-            uTribyte: function(number) {
-                number = adjustedMod(Math.round(number), MAX_VALUES.tribyte);
+            u16: function(number, buffer) {
+                numberBufferView.setUint16(0, number, true);
 
-                return String.fromCharCode(Math.floor(number / (MAX_VALUES.short))) + String.fromCharCode(Math.floor((number % (MAX_VALUES.short)) / MAX_VALUES.byte)) + String.fromCharCode(number % MAX_VALUES.byte);
+                buffer.push(numberBufferBytes[0], numberBufferBytes[1]);
             },
-            
-            uInt: function(number) {
-                number = adjustedMod(Math.round(number), MAX_VALUES.int);
 
-                return String.fromCharCode(Math.floor(number / (MAX_VALUES.tribyte))) + String.fromCharCode(Math.floor((number % (MAX_VALUES.tribyte)) / (MAX_VALUES.short))) + String.fromCharCode(Math.floor(number % (MAX_VALUES.short) / MAX_VALUES.byte)) + String.fromCharCode(number % MAX_VALUES.byte);
+            u24: function(number, buffer) {
+                number = adjustedMod(Math.round(number), MAX_VALUES.u24);
+
+                numberBufferView.setUint32(0, number, true);
+
+                // We assert: numberBufferBytes[3] should always be 0. (little-endian)
+                buffer.push(numberBufferBytes[0], numberBufferBytes[1], numberBufferBytes[2]);
             },
-            
-            sByte: function(number) {
-                return this.uByte(number + MAX_VALUES.byte / 2);
+
+            u32: function(number, buffer) {
+                numberBufferView.setUint32(0, number, true);
+
+                buffer.push(numberBufferBytes[0], numberBufferBytes[1], numberBufferBytes[2], numberBufferBytes[3]);
             },
-            
-            sShort: function(number) {
-                return this.uShort(number + MAX_VALUES.short / 2);
+
+            s8: function(number, buffer) {
+                numberBufferView.setInt8(0, number, true);
+
+                buffer.push(numberBufferBytes[0]);
             },
-            
-            sTribyte: function(number) {
-                return this.uTribyte(number + MAX_VALUES.tribyte / 2);
+
+            s16: function(number, buffer) {
+                numberBufferView.setInt16(0, number, true);
+
+                buffer.push(numberBufferBytes[0], numberBufferBytes[1]);
             },
-            
-            sInt: function(number) {
-                return this.uInt(number + MAX_VALUES.int / 2);
+
+            s24: function(number, buffer) {
+                number = adjustedMod(Math.round(number) + MAX_VALUES.s24, MAX_VALUES.u24) - MAX_VALUES.s24;
+
+                // Two's complement
+                var readValue = number;
+                if (number < 0) readValue = MAX_VALUES.u24 + number;
+
+                numberBufferView.setUint32(0, readValue, true);
+
+                // We assert: numberBufferBytes[1] should always be 0. (little-endian)
+                buffer.push(numberBufferBytes[0], numberBufferBytes[1], numberBufferBytes[2]);
             },
-            
-            float: function(number) { 
-                floatView[0] = number;
-                
-                // No loops because performance fetish
-                return String.fromCharCode(floatByteView[0]) + String.fromCharCode(floatByteView[1]) + String.fromCharCode(floatByteView[2]) + String.fromCharCode(floatByteView[3]);
+
+            s32: function(number, buffer) {
+                numberBufferView.setInt32(0, number, true);
+
+                buffer.push(numberBufferBytes[0], numberBufferBytes[1], numberBufferBytes[2], numberBufferBytes[3]);
             },
-            
-            double: function(number) {
-                doubleView[0] = number;
-                
-                return String.fromCharCode(floatByteView[0]) + String.fromCharCode(floatByteView[1]) + String.fromCharCode(floatByteView[2]) + String.fromCharCode(floatByteView[3]) + String.fromCharCode(floatByteView[4]) + String.fromCharCode(floatByteView[5]) + String.fromCharCode(floatByteView[6]) + String.fromCharCode(floatByteView[7]);
+
+            f32: function(number, buffer) {
+                numberBufferView.setFloat32(0, number, true);
+
+                buffer.push(numberBufferBytes[0], numberBufferBytes[1], numberBufferBytes[2], numberBufferBytes[3]);
+            },
+
+            f64: function(number, buffer) {
+                numberBufferView.setFloat64(0, number, true);
+
+                buffer.push(numberBufferBytes[0], numberBufferBytes[1], numberBufferBytes[2], numberBufferBytes[3], numberBufferBytes[4], numberBufferBytes[5], numberBufferBytes[6], numberBufferBytes[7]);
             }
         },
-        from: {
-            uByte: function(string) {
-                return adjustedMod(string.charCodeAt(0), MAX_VALUES.byte);
+        read: {
+            u8: function() {
+                var value = decodeView.getUint8(index, true);
+                index += 1;
+
+                return value;
             },
-            
-            uShort: function(string) {
-                return adjustedMod((string.charCodeAt(0) * MAX_VALUES.byte + string.charCodeAt(1)), MAX_VALUES.short);
+
+            u16: function() {
+                var value = decodeView.getUint16(index, true);
+                index += 2;
+
+                return value;
             },
-            
-            uTribyte: function(string) {
-                return adjustedMod((string.charCodeAt(0) * MAX_VALUES.short + string.charCodeAt(1) * MAX_VALUES.byte + string.charCodeAt(2)), MAX_VALUES.tribyte);
-            },
-            
-            uInt: function(string) {
-                return adjustedMod((string.charCodeAt(0) * MAX_VALUES.tribyte + string.charCodeAt(1) * MAX_VALUES.short + string.charCodeAt(2) * MAX_VALUES.byte + string.charCodeAt(3)), MAX_VALUES.int);
-            },
-            
-            sByte: function(string) {
-                return this.uByte(string) - MAX_VALUES.byte / 2;
-            },
-            
-            sShort: function(string) {
-                return this.uShort(string) - MAX_VALUES.short / 2;
-            },
-            
-            sTribyte: function(string) {
-                return this.uTribyte(string) - MAX_VALUES.tribyte / 2;
-            },
-            
-            sInt: function(string) {
-                return this.uInt(string) - MAX_VALUES.int / 2;
-            },
-            
-            float: function(string) {
-                floatByteView[0] = string.charCodeAt(0);
-                floatByteView[1] = string.charCodeAt(1);
-                floatByteView[2] = string.charCodeAt(2);
-                floatByteView[3] = string.charCodeAt(3);
+
+            u24: function() {
+                numberBufferBytes[0] = decodeBytes[index];
+                numberBufferBytes[1] = decodeBytes[index + 1];
+                numberBufferBytes[2] = decodeBytes[index + 2];
+                numberBufferBytes[3] = 0;
                 
-                return floatView[0];
+                var value = numberBufferView.getUint32(0, true);
+                index += 3;
+
+                return value;
             },
-            
-            double: function(string) {
-                floatByteView[0] = string.charCodeAt(0);
-                floatByteView[1] = string.charCodeAt(1);
-                floatByteView[2] = string.charCodeAt(2);
-                floatByteView[3] = string.charCodeAt(3);
-                floatByteView[4] = string.charCodeAt(4);
-                floatByteView[5] = string.charCodeAt(5);
-                floatByteView[6] = string.charCodeAt(6);
-                floatByteView[7] = string.charCodeAt(7);
-                
-                return doubleView[0];
+
+            u32: function() {
+                var value = decodeView.getUint32(index, true);
+                index += 4;
+
+                return value;
+            },
+
+            s8: function() {
+                var value = decodeView.getInt8(index, true);
+                index += 1;
+
+                return value;
+            },
+
+            s16: function() {
+                var value = decodeView.getInt16(index, true);
+                index += 2;
+
+                return value;
+            },
+
+            s24: function() {
+                var u24 = numberHelper.read.u24();
+
+                // Two's complement
+                if (u24 >= MAX_VALUES.s24) return u24 - MAX_VALUES.u24;
+                return u24;
+            },
+
+            s32: function() {
+                var value = decodeView.getInt32(index, true);
+                index += 4;
+
+                return value;
+            },
+
+            f32: function() {
+                var value = decodeView.getFloat32(index, true);
+                index += 4;
+
+                return value;
+            },
+
+            f64: function() {
+                var value = decodeView.getFloat64(index, true);
+                index += 8;
+
+                return value;
             }
         }
     };
-    // Alias
-    formatter.to.byte = formatter.to.uByte;
-    formatter.to.short = formatter.to.uShort;
-    formatter.to.tribyte = formatter.to.uTribyte;
-    formatter.to.int = formatter.to.uInt;
-    formatter.from.byte = formatter.from.uByte;
-    formatter.from.short = formatter.from.uShort;
-    formatter.from.tribyte = formatter.from.uTribyte;
-    formatter.from.int = formatter.from.uInt;
     
-    // Handle exporting of the framework
+    // Handle exporting
     if (typeof module === "object" && typeof module.exports === "object") {
         module.exports = Binarify;
     } else {
