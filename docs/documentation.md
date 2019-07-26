@@ -257,22 +257,22 @@ handleMessage(decoded);
 ```
 
 ---
-## Binarify.Enumerator
-Used to encode a reference to an element of a predefined enumeration. Good if you know the value can only be a few things.
+## Binarify.SetElement
+Used to encode a reference to an element of a predefined set. Good if you know the value can only be a few things.
 ### Instanciation syntax:
 ```javascript
-new Binarify.Enumerator(enumeration[, noSerialization])
+new Binarify.SetElement(set[, noSerialization])
 ```
 *Arguments:*<br>
-- `enumeration` - An array specifying all the possible elements. The element has to be serializable if `noSerialization` isn't `true`.
-- `noSerialization` - *Optional.* If set to `true`, elements in the `enumeration` array won't be serialized. This means you can encode almost everything, but will result in the direct reference to the variable being returned by `decode()` - meaning it can be changed locally and will thus differ from all parties involved. Only use if you know what you're doing, or if you want to pass functions or read-only objects. Defaults to `false`.
+- `set` - An array specifying all the possible elements. The element has to be serializable if `noSerialization` isn't `true`.
+- `noSerialization` - *Optional.* If set to `true`, elements in the `set` array won't be serialized. This means you can encode almost everything, but will result in the direct reference to the variable being returned by `decode()` - meaning it can be changed locally and will thus differ from all parties involved. Only use if you know what you're doing, or if you want to pass functions or read-only objects. Defaults to `false`.
 ### Encoding syntax:
 ```javascript
-Binarify.encode(converter, element) // 'element' must be contained in enum
+Binarify.encode(converter, element) // 'element' must be contained in the set
 ```
 ### Example:
 ```javascript
-var elem = new Binarify.Enumerator(["a", "b", "c", true, Math.PI, {foo: "bar"}, [0, 1, 2]]);
+var elem = new Binarify.SetElement(["a", "b", "c", true, Math.PI, {foo: "bar"}, [0, 1, 2]]);
 
 // These all work
 Binarify.encode(elem, "a"));
@@ -288,7 +288,7 @@ Binarify.encode(elem, Math.E));
 Binarify.encode(elem, {name: "John Doe"}));
 
 /* Example for no serialization: */
-var referenceElem = new Binarify.Enumerator([Math, setInterval], true);
+var referenceElem = new Binarify.SetElement([Math, setInterval], true);
 
 let encoded = Binarify.encode(referenceElem, Math);
 let decoded = Binarify.decode(referenceElem, Math);

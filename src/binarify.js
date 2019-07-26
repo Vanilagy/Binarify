@@ -1,5 +1,5 @@
 /*
-    Binarify v3.0.1
+    Binarify v3.0.2
     @Vanilagy
 */
 
@@ -167,7 +167,7 @@
     */
 
     var Binarify = {
-        version: "3.0.1", // Can be used to compare client and server
+        version: "3.0.2", // Can be used to compare client and server
 
         encode: function(converter, data) {
             var buffer = [];
@@ -598,61 +598,61 @@
             };
         },
         
-        Enumerator: function(enumeration, noSerialization) {
-            var stringifiedEnumerators, stringifiedEnumeratorsArr, keyLengthByteType;
+        SetElement: function(set, noSerialization) {
+            var stringifiedElements, stringifiedElementArr, keyLengthByteType;
             
-            this.set = function(enumerationNew, noSerializationNew) {
-                enumeration = enumerationNew;
+            this.set = function(setNew, noSerializationNew) {
+                set = setNew;
                 noSerialization = noSerializationNew;
                 
-                if (enumeration === undefined) return;
+                if (set === undefined) return;
 
                 if (!noSerialization) {
-                    stringifiedEnumerators = {}, stringifiedEnumeratorsArr = [];
-                    for (var i = 0; i < enumeration.length; i++) {
+                    stringifiedElements = {}, stringifiedElementArr = [];
+                    for (var i = 0; i < set.length; i++) {
                         try {
-                            var json = JSON.stringify(enumeration[i]);
-                            if (json === undefined) throw new Error("Enumerator " + enumeration[i] + " serialized to 'undefined', that's bad.");
+                            var json = JSON.stringify(set[i]);
+                            if (json === undefined) throw new Error("Set element " + set[i] + " serialized to 'undefined', that's bad.");
 
-                            stringifiedEnumerators[json] = i;
-                            stringifiedEnumeratorsArr.push(json);
+                            stringifiedElements[json] = i;
+                            stringifiedElementArr.push(json);
                         } catch(e) {
-                            throw new Error("Enumerator " + enumeration[i] + " couldn't be serialized.", e);
+                            throw new Error("Set element " + set[i] + " couldn't be serialized.", e);
                         }
                     }
                 }
 
-                var keyLengthByteLength = Math.ceil(Math.log2(enumeration.length) / 8) || 1;            
+                var keyLengthByteLength = Math.ceil(Math.log2(set.length) / 8) || 1;            
                 keyLengthByteType = getTypeByLength(keyLengthByteLength);
                 
                 return this;
             };
-            this.set(enumeration, noSerialization);
+            this.set(set, noSerialization);
             
-            this.encode = function(enumerator, buffer) {
-                if (enumeration === undefined) throw new Error("Can't encode, no enumeration defined.");
+            this.encode = function(element, buffer) {
+                if (set === undefined) throw new Error("Can't encode, no set defined.");
                 
                 var index;
                 if (noSerialization) {
-                    index = enumeration.indexOf(enumerator);
+                    index = set.indexOf(element);
                 } else {
-                    index = stringifiedEnumerators[JSON.stringify(enumerator)];
+                    index = stringifiedElements[JSON.stringify(element)];
                 }
                 
                 if (index !== -1 && index !== undefined) {
                     numberHelper.write[keyLengthByteType](index, buffer);
                 } else {
-                    throw new Error("Enumerator " + enumerator + " not specified in enumeration.");
+                    throw new Error("Set element " + element + " not specified in enumeration.");
                 }
             };
             
             this.decode = function() {
-                var enumeratorIndex = numberHelper.read[keyLengthByteType](decodeBytes);
+                var elementIndex = numberHelper.read[keyLengthByteType](decodeBytes);
                 
                 if (noSerialization) {
-                    return enumeration[enumeratorIndex];
+                    return set[elementIndex];
                 } else {
-                    return JSON.parse(stringifiedEnumeratorsArr[enumeratorIndex]);
+                    return JSON.parse(stringifiedElementArr[elementIndex]);
                 }
             };
         },
