@@ -102,10 +102,10 @@ var encodedDate = Binarify.encode(dateStr, "24-02-1955");
 Used for hexadecimal strings. Stores them in about half the bytesize of what a regular string would require.
 ### Instanciation syntax:
 ```javascript
-new Binarify.HexString([length])
+new Binarify.HexString(length)
 ```
 *Arguments:*<br>
-- `length` - *Optional.* Can be used to specify an exact length for the hex string (saves a few bytes).
+- `length` - Specifies the bytetype storing the length of the hex string. Accepted values are **"u8"**, **"u16"**, **"u24"**, **"u32"**, **"s8"**, **"s16"**, **"s24"**, **"s32"**, **"f32"**, **"f64"**, _or_ an integer (used to define a hex string with *fixed length*, resulting in saved bytes). Inputs longer than the possible storable length will be shortened.
 ### Encoding syntax:
 ```javascript
 Binarify.encode(converter, hexString)

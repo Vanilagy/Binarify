@@ -1,5 +1,5 @@
 /*
-    Binarify v3.0.2
+    Binarify v3.1.0
     @Vanilagy
 */
 
@@ -49,7 +49,7 @@
 
     var textEncoder, textDecoder;
 
-    // The if (true ...) is based on the observation that the following polyfill is actually 50% FASTER than the native implementation. Strange.
+    // The "if (true ...)" is based on the observation that the following polyfill is actually 50% FASTER than the native implementation. Strange.
     if (true || typeof TextEncoder === "undefined") {
         // Load them from this awesome polyfill (slightly modified) from https://github.com/anonyco/FastestSmallestTextEncoderDecoder:
 
@@ -167,7 +167,7 @@
     */
 
     var Binarify = {
-        version: "3.0.2", // Can be used to compare client and server
+        version: "3.1.0", // Can be used to compare client and server
 
         encode: function(converter, data) {
             var buffer = [];
@@ -246,19 +246,19 @@
             this.set(maxSize);
 
             function findUtf8ByteLength(bytes, stringLength) {
-                var index = 0;
+                var localIndex = index;
 
                 // Hop over the utf8
                 for (var i = 0; i < stringLength; i++) {
-                    var byte = bytes[index];
+                    var byte = bytes[localIndex];
 
-                    if ((byte & 0b11110000) === 0b11110000) { index += 4; continue; }
-                    if ((byte & 0b11100000) === 0b11100000) { index += 3; continue; }
-                    if ((byte & 0b11000000) === 0b11000000) { index += 2; continue; }
-                    index += 1;
+                    if ((byte & 0b11110000) === 0b11110000) { localIndex += 4; continue; }
+                    if ((byte & 0b11100000) === 0b11100000) { localIndex += 3; continue; }
+                    if ((byte & 0b11000000) === 0b11000000) { localIndex += 2; continue; }
+                    localIndex += 1;
                 }
 
-                return index;
+                return (localIndex - index);
             }
             
             this.encode = function(string, buffer) {
@@ -270,9 +270,9 @@
                         appendBytesToArray(buffer, bytes);
                         buffer.push(0);
                     } else {
-                        // Prepend the string's length
-                        string = string.slice(0, MAX_VALUES[size]-1);
+                        if (string.length > MAX_VALUES[size]-1) string = string.slice(0, MAX_VALUES[size]-1);
 
+                        // Prepend the string's length
                         numberHelper.write[size](string.length, buffer);
                         buffer.push(...stringToUtf8Bytes(string));
                     }
@@ -351,6 +351,7 @@
                 if (hasExactLength) {
                     if (hexString.length !== maxSize) throw new Error("Passed string isn't of specified length " + maxSize + ".");
                 } else {
+                    if (hexString.length > MAX_VALUES[maxSize]-1) hexString = hexString.slice(0, MAX_VALUES[maxSize]-1);
                     numberHelper.write[maxSize](hexString.length, buffer);
                 }
 
@@ -606,6 +607,7 @@
                 noSerialization = noSerializationNew;
                 
                 if (set === undefined) return;
+                if (set.length === 0) throw new Error("Set cannot be an empty set.");
 
                 if (!noSerialization) {
                     stringifiedElements = {}, stringifiedElementArr = [];
@@ -702,7 +704,7 @@
                     obj[attributes[i]] = (currentByte & (1 << i % 8)) !== 0;
                 }
                 
-                index += Math.floor(attributes.length / 8);
+                index += Math.ceil(attributes.length / 8);
                 
                 return obj;
             };
@@ -716,7 +718,9 @@
             };
             
             this.encode = function(data, buffer) {
-                if (data === null || converter === undefined) {
+                if (converter === undefined) return; // Since we'll always encode 'null', that takes up zero bytes.
+                
+                if (data === null) {
                     buffer.push(0);
                 } else {
                     buffer.push(1);
@@ -725,8 +729,9 @@
             };
 
             this.decode = function() {
-                var isNull = decodeBytes[index++] === 0;
+                if (converter === undefined) return null;
 
+                var isNull = decodeBytes[index++] === 0;
                 if (isNull) {
                     return null;
                 } else {
