@@ -1,5 +1,5 @@
 /*
-    Binarify v3.1.0
+    Binarify v3.1.1
     @Vanilagy
 */
 
@@ -39,6 +39,10 @@
     var hexRegExp = /^[0-9a-fA-F]+$/;
     function isHexString(str) {
         return hexRegExp.test(str);
+    }
+
+    function isObject(o) {
+        return o instanceof Object && o.constructor === Object;
     }
 
     function appendBytesToArray(arr, uint8Array) {
@@ -195,6 +199,8 @@
             this.set = function() {return this};
             
             this.encode = function(boolean, buffer) {
+                if (typeof boolean !== "boolean") throw new Error("Input is not of type boolean.");
+
                 buffer.push(boolean? 1 : 0);
             };
             
@@ -214,6 +220,8 @@
             this.set(type);
 
             this.encode = function(number, buffer) {
+                if (typeof number !== "number") throw new Error("Input is not of type number.");
+
                 numberHelper.write[type](number, buffer);
             };
             
@@ -262,6 +270,8 @@
             }
             
             this.encode = function(string, buffer) {
+                if (typeof string !== "string") throw new Error("Input is not of type string.");
+
                 if (!hasExactLength) {
                     if (size === "nullTerminated") {
                         if (string.indexOf("\u0000") !== -1) string.replace(/\u0000/g, " "); // All NULL-characters will be replaced with a space
@@ -346,7 +356,7 @@
             this.set(maxSize);
 
             this.encode = function(hexString, buffer) {
-                if (hexString.length > 0 && !isHexString(hexString)) throw new Error("Passed string is not a hex string.");
+                if (hexString.length > 0 && !isHexString(hexString)) throw new Error("Passed parameter is not a hex string.");
 
                 if (hasExactLength) {
                     if (hexString.length !== maxSize) throw new Error("Passed string isn't of specified length " + maxSize + ".");
@@ -414,6 +424,7 @@
             
             this.encode = function(obj, buffer) {
                 if (blueprint === undefined) throw new Error("Can't encode, no blueprint defined.");
+                if (!isObject(obj)) throw new Error("Input is not an object.");
                 
                 if (!loose) {
                     for (var i = 0; i < keys.length; i++) {
@@ -494,6 +505,7 @@
 
             this.encode = function(arr, buffer) {
                 if (element === undefined) throw new Error("Can't encode, element not specified.");
+                if (!Array.isArray(arr)) throw new Error("Input is not an array.");
 
                 var arrLength = arr.length;
 
@@ -539,6 +551,7 @@
 
             this.encode = function(values, buffer) {
                 if (elements === undefined) throw new Error("Can't encode, no tuple specified.");
+                if (!Array.isArray(values)) throw new Error("Input is not a tuple (array).");
 
                 if (values.length !== elements.length) throw new Error("Given tuple values don't match the tuple's length of " + elements.length + ".");
 
@@ -578,6 +591,8 @@
             
             this.encode = function(pair, buffer) {
                 if (pairs === undefined) throw new Error("Can't encode, no pairs object defined.");
+                if (!isObject(pair)) throw new Error("Argument is not an object.");
+                if (pair.key === undefined) throw new Error("Argument does not have a 'key' property.");
                 
                 var key = pair.key, value = pair.value;
 
@@ -668,6 +683,7 @@
             
             this.encode = function(obj, buffer) {
                 if (attributes === undefined) throw new Error("Can't encode, no attribute array defined.");
+                if (!isObject(obj)) throw new Error("Input is not an object.");
                 
                 var currentByte = 0;
                 for (var i = 0; i < attributes.length; i++) {
